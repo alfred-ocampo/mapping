@@ -1,0 +1,1846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .sidebar {
+            width: 320px;
+            min-width: 320px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            z-index: 1000;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-content {
+            padding: 20px;
+            height: 100%;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        .map-wrapper {
+            flex: 1;
+            position: relative;
+            height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .controls {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.06), 0 4px 8px rgba(0,0,0,0.03);
+            border: 1px solid rgba(0,0,0,0.05);
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        .controls-header {
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .controls-header h2 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .controls-header h2::before {
+            content: '⚙️';
+            font-size: 1.1rem;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+            width: 100%;
+        }
+
+        .control-section {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        .control-section:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .control-section h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #374151;
+            margin: 0 0 12px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .input-group {
+            margin-bottom: 12px;
+        }
+
+        .input-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            max-width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: white;
+            color: #1e293b;
+            box-sizing: border-box;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .input-group input::placeholder {
+            color: #94a3b8;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 8px;
+            margin-bottom: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+            box-shadow: 0 4px 12px rgba(100, 116, 139, 0.2);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 8px 20px rgba(100, 116, 139, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .status {
+            margin-top: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 13px;
+            border-left: 3px solid;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status.success {
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            color: #166534;
+            border-left-color: #22c55e;
+        }
+
+        .status.error {
+            background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+            color: #991b1b;
+            border-left-color: #ef4444;
+        }
+
+        .status.loading {
+            background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
+            color: #92400e;
+            border-left-color: #f59e0b;
+        }
+
+        .map-container {
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .legend {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .legend h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 4px;
+            margin-right: 10px;
+            border-radius: 2px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* InfoWindow / popup content (Google Maps + shared markup) */
+        .gm-style .gm-style-iw-c {
+            padding: 0 !important;
+            border-radius: 16px !important;
+            max-width: 280px !important;
+        }
+
+        .gm-style .gm-style-iw-d {
+            overflow: hidden !important;
+        }
+
+        .mapboxgl-popup-content {
+            border-radius: 16px !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 10px 20px -5px rgba(0, 0, 0, 0.1) !important;
+            border: 1px solid rgba(0, 0, 0, 0.08) !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+            backdrop-filter: blur(10px) !important;
+            background: rgba(255, 255, 255, 0.95) !important;
+        }
+
+        .mapboxgl-popup-tip {
+            border-top-color: rgba(255, 255, 255, 0.95) !important;
+            filter: drop-shadow(0 -2px 4px rgba(0, 0, 0, 0.1)) !important;
+        }
+
+        .mapboxgl-popup-close-button {
+            background: rgba(255, 255, 255, 0.95) !important;
+            border-radius: 50% !important;
+            width: 30px !important;
+            height: 30px !important;
+            font-size: 18px !important;
+            font-weight: bold !important;
+            color: #64748b !important;
+            right: 8px !important;
+            top: 8px !important;
+            padding: 0 !important;
+            border: 1px solid rgba(0, 0, 0, 0.15) !important;
+            transition: all 0.2s ease !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            cursor: pointer !important;
+            z-index: 1000 !important;
+            line-height: 1 !important;
+            text-decoration: none !important;
+            outline: none !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .mapboxgl-popup-close-button:hover {
+            background: rgba(239, 68, 68, 0.1) !important;
+            color: #ef4444 !important;
+            border-color: rgba(239, 68, 68, 0.3) !important;
+            transform: scale(1.1) !important;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
+        }
+
+        .mapboxgl-popup-close-button:active {
+            transform: scale(0.95) !important;
+            transition: transform 0.1s ease !important;
+        }
+
+        /* Custom popup content styling */
+        .popup-content {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            line-height: 1.5;
+        }
+
+        .popup-header {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            padding: 8px 10px;
+            border-bottom: 1px solid #e2e8f0;
+            position: relative;
+        }
+
+        .popup-title {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 0;
+            font-size: 13px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .popup-icon {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .popup-body {
+            padding: 10px;
+        }
+
+        .popup-info-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        .popup-info-item {
+            background: #f8fafc;
+            padding: 6px 8px;
+            border-radius: 4px;
+            border-left: 2px solid #3b82f6;
+        }
+
+        .popup-info-label {
+            color: #64748b;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            font-weight: 600;
+            margin-bottom: 1px;
+        }
+
+        .popup-info-value {
+            color: #1e293b;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .popup-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+            gap: 4px;
+        }
+
+        .popup-stat-card {
+            background: white;
+            padding: 6px 4px;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .popup-stat-card:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .popup-stat-label {
+            color: #64748b;
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            font-weight: 600;
+            margin-bottom: 1px;
+        }
+
+        .popup-stat-value {
+            color: #1e293b;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .popup-distance-card {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            padding: 6px 4px;
+            border-radius: 4px;
+            text-align: center;
+            box-shadow: 0 1px 4px rgba(59, 130, 246, 0.2);
+        }
+
+        .popup-distance-label {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            font-weight: 600;
+            opacity: 0.9;
+            margin-bottom: 1px;
+        }
+
+        .popup-distance-value {
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        /* Enhanced select styling */
+        select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e") !important;
+            background-position: right 8px center !important;
+            background-repeat: no-repeat !important;
+            background-size: 16px !important;
+            appearance: none !important;
+            padding-right: 35px !important;
+        }
+
+        /* Loading animation improvements */
+        .loading-spinner {
+            animation: spin 1s linear infinite !important;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Enhanced button hover effects */
+        .btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3) !important;
+        }
+
+        .btn:active {
+            transform: translateY(0) !important;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 280px;
+                min-width: 280px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .controls {
+                padding: 16px;
+                margin-bottom: 12px;
+            }
+            
+            .controls-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            
+            .control-section {
+                padding: 14px;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+                margin-right: 0;
+                padding: 12px 16px;
+            }
+
+            .mapboxgl-popup-content {
+                max-width: 220px !important;
+            }
+            
+            .popup-header {
+                padding: 6px 8px;
+            }
+            
+            .popup-body {
+                padding: 8px;
+            }
+            
+            .popup-title {
+                font-size: 12px;
+            }
+            
+            .popup-stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 3px;
+            }
+            
+            .popup-info-grid {
+                gap: 3px;
+                margin-bottom: 6px;
+            }
+            
+            .popup-info-item {
+                padding: 4px 6px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .controls {
+                padding: 12px;
+            }
+            
+            .control-section {
+                padding: 12px;
+            }
+            
+            .controls-header h2 {
+                font-size: 1.2rem;
+            }
+            
+            .map-container {
+                height: 400px;
+            }
+            
+            .mapboxgl-popup-content {
+                max-width: 200px !important;
+            }
+            
+            .popup-header {
+                padding: 5px 6px;
+            }
+            
+            .popup-body {
+                padding: 6px;
+            }
+            
+            .popup-title {
+                font-size: 11px;
+            }
+            
+            .popup-stats-grid {
+                grid-template-columns: 1fr;
+                gap: 2px;
+            }
+            
+            .popup-stat-card {
+                padding: 4px 3px;
+            }
+            
+            .popup-info-grid {
+                gap: 2px;
+                margin-bottom: 6px;
+            }
+            
+            .popup-info-item {
+                padding: 4px 5px;
+            }
+            
+            .popup-icon {
+                width: 8px;
+                height: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="header">
+ 
+                </div>
+
+                <div class="controls">
+                    <!-- Hidden input for sheet URL -->
+                    <input type="hidden" id="sheetUrl" 
+                           value="https://docs.google.com/spreadsheets/d/1gdH0NSk4YqApQ2OEXc_X1LjIu0M6QbSCQ2msucAsLBw/edit?gid=1029875154#gid=1029875154">
+                    
+                    <div class="controls-header">
+                        <h2>Miami Map Visualizer</h2>
+                    </div>
+                    
+                    <div class="controls-grid">
+                        <!-- Search Section -->
+                        <div class="control-section">
+                            <h3>🔍 Search & Filter</h3>
+                            <div class="input-group">
+                                <label for="searchObjectId">ID Search</label>
+                                <input type="text" id="searchObjectId" placeholder="Enter ID to search..." 
+                                       onkeypress="handleSearchKeyPress(event)" oninput="searchObjectId()">
+                            </div>
+                            
+                            <div class="input-group">
+                                <label for="filterMapper">Filter by Mapper</label>
+                                <select id="filterMapper" onchange="applyFilters()">
+                                    <option value="">All Mappers</option>
+                                </select>
+                            </div>
+                            
+                            <div class="input-group">
+                                <label for="filterZone">Filter by Zone</label>
+                                <select id="filterZone" onchange="applyFilters()">
+                                    <option value="">All Zones</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Data Management Section -->
+                        <div class="control-section">
+                            <h3>📊 Data Management</h3>
+                            <div class="button-group">
+                                <button class="btn" onclick="loadGeoJSONData()">
+                                    <span>🔄</span>
+                                    <span id="loadBtnText">Refresh Data</span>
+                                </button>
+                                
+                                <button class="btn btn-danger" onclick="clearMap()" id="clearBtn" disabled>
+                                    <span>🗑️</span>
+                                    <span>Clear Map</span>
+                                </button>
+                                
+                                <button class="btn btn-secondary" onclick="clearFilters()">
+                                    <span>🧹</span>
+                                    <span>Clear Filters</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Map Settings Section -->
+                        <div class="control-section">
+                            <h3>🗺️ Map Settings</h3>
+                            <div class="input-group">
+                                <label for="mapStyle">Map Style</label>
+                                <select id="mapStyle" onchange="changeMapStyle()">
+                                    <option value="terrain">🏔️ Terrain (default)</option>
+                                    <option value="roadmap">🗺️ Road map</option>
+                                    <option value="satellite">🛰️ Satellite</option>
+                                    <option value="hybrid">🛰️ Hybrid</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="status"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Area -->
+        <div class="map-wrapper">
+            <div class="map-container">
+                <div id="map"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const GOOGLE_MAPS_API_KEY = 'AIzaSyCKo-4KyqDSNOfY5uP--H9IIb_G56WavvQ';
+
+        let map;
+        let loadedMapOverlays = [];
+        let allFeatures = []; // Store all loaded features for filtering
+        let currentInfoWindow = null;
+        let routeClickedFlag = false; // Flag to prevent global map click when route is clicked
+        let currentFilters = {
+            mapper: '',
+            zone: '',
+            searchObjectId: ''
+        };
+
+        function initGoogleMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 25.7617, lng: -80.1918 },
+                zoom: 11,
+                mapTypeId: google.maps.MapTypeId.TERRAIN,
+                mapTypeControl: true,
+                streetViewControl: true,
+                fullscreenControl: true,
+                zoomControl: true,
+                scaleControl: true
+            });
+
+            map.addListener('click', () => {
+                if (routeClickedFlag) {
+                    routeClickedFlag = false;
+                    return;
+                }
+                if (currentInfoWindow) {
+                    currentInfoWindow.close();
+                    currentInfoWindow = null;
+                }
+            });
+
+            showStatus('Map initialized successfully', 'success');
+
+            google.maps.event.addListenerOnce(map, 'idle', () => {
+                setTimeout(() => loadGeoJSONData(), 500);
+            });
+        }
+
+        // Calculate distance between coordinates using Haversine formula
+        function calculateDistance(coords) {
+            if (coords.length < 2) return 0;
+            
+            let totalDistance = 0;
+            
+            for (let i = 0; i < coords.length - 1; i++) {
+                const [lng1, lat1] = coords[i];
+                const [lng2, lat2] = coords[i + 1];
+                
+                const R = 6371000; // Earth's radius in meters
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLng = (lng2 - lng1) * Math.PI / 180;
+                const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                         Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                         Math.sin(dLng/2) * Math.sin(dLng/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                const distance = R * c;
+                
+                totalDistance += distance;
+            }
+            
+            return totalDistance;
+        }
+
+        // Format distance for display in meters
+        function formatDistance(meters) {
+            if (meters < 1000) {
+                return `${Math.round(meters)} m`;
+            } else {
+                return `${(meters / 1000).toFixed(2)} km`;
+            }
+        }
+
+        // Extract Sheet ID from Google Sheets URL
+        function extractSheetId(url) {
+            const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+            return match ? match[1] : null;
+        }
+
+        function extractGidFromSheetUrl(url) {
+            const match = url.match(/[#&?]gid=(\d+)/);
+            return match ? match[1] : '0';
+        }
+
+        // Show status messages
+        function showStatus(message, type = 'loading') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            
+            if (type === 'loading') {
+                statusDiv.innerHTML = `<div class="loading-spinner"></div>${message}`;
+            } else {
+                statusDiv.innerHTML = message;
+            }
+            
+            statusDiv.style.display = 'block';
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+                // Parse coordinate data from sheet rows
+        function parseGeoJSONFromRows(rows) {
+            const features = [];
+            let headers = [];
+            
+            console.log('Total rows received:', rows.length);
+            console.log('First few rows sample:', rows.slice(0, 3));
+            
+            rows.forEach((row, rowIndex) => {
+                console.log(`\n=== Processing Row ${rowIndex} ===`);
+                console.log(`Row ${rowIndex} has ${row.length} cells:`, row);
+                
+                // Check if this is the header row
+                if (rowIndex === 0 && (row.includes('Name') || row.includes('Area') || row.includes('ID'))) {
+                    headers = row;
+                    console.log('Found header row:', headers);
+                    return;
+                }
+                
+                // Extract properties from columns A-D (indices 0-3)
+                const properties = {};
+                
+                if (headers.length > 0) {
+                    // Use header names if available
+                    for (let i = 0; i < Math.min(4, headers.length); i++) {
+                        if (row[i] !== undefined && row[i] !== '') {
+                            properties[headers[i]] = row[i];
+                        }
+                    }
+                } else {
+                    // Use updated property names based on your sheet structure
+                    const propertyNames = ['Mapper Name', 'ID', 'ZONE NUMBER', 'Street View Spaces'];
+                    for (let i = 0; i < 4; i++) {
+                        if (row[i] !== undefined && row[i] !== '') {
+                            properties[propertyNames[i]] = row[i];
+                        }
+                    }
+                }
+                
+                console.log('Extracted properties:', properties);
+                
+                // Extract coordinates from column E onwards (index 4+)
+                // New format: Each cell contains full line coordinates separated by semicolons
+                // E.g., "-76.99259980728371,38.89909205267844; -76.99259578533682,38.89953130766435"
+                const lineStrings = [];
+                
+                // Check cells starting from column E (index 4) until we find an empty cell
+                for (let cellIndex = 4; cellIndex < row.length; cellIndex++) {
+                    const cellValue = row[cellIndex];
+                    
+                    // Skip empty cells - if we find an empty cell, we've reached the end
+                    if (!cellValue || cellValue.trim() === '') {
+                        break;
+                    }
+                    
+                    console.log(`Processing cell ${cellIndex} (column ${String.fromCharCode(69 + cellIndex - 4)}): "${cellValue}"`);
+                    
+                    // Parse coordinate pairs from this cell (separated by semicolons)
+                    const coordinatePairs = cellValue.split(';').map(pair => pair.trim()).filter(pair => pair.length > 0);
+                    const lineCoordinates = [];
+                    
+                    coordinatePairs.forEach(pair => {
+                        const coords = pair.split(',').map(c => parseFloat(c.trim()));
+                        if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                            lineCoordinates.push([coords[0], coords[1]]); // [lng, lat]
+                            console.log(`  Added coordinate pair: [${coords[0]}, ${coords[1]}]`);
+                        } else {
+                            console.log(`  Skipping invalid coordinate pair: "${pair}"`);
+                        }
+                    });
+                    
+                    if (lineCoordinates.length >= 2) {
+                        lineStrings.push(lineCoordinates);
+                        console.log(`  Created line with ${lineCoordinates.length} coordinate pairs`);
+                    } else {
+                        console.log(`  Skipping line with insufficient coordinates (${lineCoordinates.length})`);
+                    }
+                }
+                
+                console.log(`Total lines extracted: ${lineStrings.length}`);
+                
+                if (lineStrings.length > 0) {
+                    if (lineStrings.length === 1) {
+                        // Single LineString - only one cell contained coordinates
+                        const coordinates = lineStrings[0];
+                        const distance = calculateDistance(coordinates);
+                        const formattedDistance = formatDistance(distance);
+                        
+                        const feature = {
+                            type: 'Feature',
+                            properties: {
+                                ...properties,
+                                rowIndex: rowIndex,
+                                coordinateCount: coordinates.length,
+                                distance: distance,
+                                formattedDistance: formattedDistance,
+                                description: `${properties['Mapper Name'] || 'Mapper'} - Zone ${properties['ZONE NUMBER'] || 'Unknown'} (${formattedDistance})`
+                            },
+                            geometry: {
+                                type: 'LineString',
+                                coordinates: coordinates
+                            }
+                        };
+                        
+                        features.push(feature);
+                        console.log(`Created LineString for ${properties['Mapper Name'] || 'Unknown'} with ${coordinates.length} points, distance: ${formattedDistance}`);
+                    } else {
+                        // MultiLineString - multiple cells contained coordinates
+                        let totalDistance = 0;
+                        let totalCoordinateCount = 0;
+                        
+                        // Calculate total distance across all line segments
+                        lineStrings.forEach(lineCoords => {
+                            totalDistance += calculateDistance(lineCoords);
+                            totalCoordinateCount += lineCoords.length;
+                        });
+                        
+                        const formattedDistance = formatDistance(totalDistance);
+                        
+                        // Create a MultiLineString feature
+                        const feature = {
+                            type: 'Feature',
+                            properties: {
+                                ...properties,
+                                rowIndex: rowIndex,
+                                coordinateCount: totalCoordinateCount,
+                                distance: totalDistance,
+                                formattedDistance: formattedDistance,
+                                segmentCount: lineStrings.length,
+                                description: `${properties['Mapper Name'] || 'Mapper'} - Zone ${properties['ZONE NUMBER'] || 'Unknown'} (${lineStrings.length} lines, ${formattedDistance})`
+                            },
+                            geometry: {
+                                type: 'MultiLineString',
+                                coordinates: lineStrings
+                            }
+                        };
+                        
+                        features.push(feature);
+                        console.log(`Created MultiLineString for ${properties['Mapper Name'] || 'Unknown'} with ${lineStrings.length} separate lines, total distance: ${formattedDistance}`);
+                    }
+                } else {
+                    console.log(`Row ${rowIndex} (${properties['Mapper Name'] || 'Unknown'}): No valid coordinate lines found`);
+                }
+            });
+            
+            console.log(`Parsing summary: Created ${features.length} features`);
+            features.forEach((feature, index) => {
+                const props = feature.properties;
+                console.log(`Feature ${index}: ${props['Mapper Name']} (Zone ${props['ZONE NUMBER']}) - ${feature.geometry.type} with ${feature.geometry.type === 'LineString' ? feature.geometry.coordinates.length : 1} points`);
+            });
+            
+            return features;
+        }
+
+        function buildRoutePopupHtml(props, geometryType) {
+            const isMultiSegment = props.segmentCount > 1;
+            const routeColor = isMultiSegment ? '#16a34a' : '#2563eb';
+            return `
+                <div class="popup-content">
+                    <div class="popup-header">
+                        <h3 class="popup-title">
+                            <div class="popup-icon" style="background: ${routeColor};"></div>
+                            ${props['Mapper Name'] || 'Mapper'}
+                        </h3>
+                    </div>
+                    <div class="popup-body">
+                        <div class="popup-info-grid">
+                            ${props['ID'] ? `
+                            <div class="popup-info-item">
+                                <div class="popup-info-label">ID</div>
+                                <div class="popup-info-value">${props['ID']}</div>
+                            </div>` : ''}
+                            ${props['ZONE NUMBER'] ? `
+                            <div class="popup-info-item">
+                                <div class="popup-info-label">Zone Number</div>
+                                <div class="popup-info-value">${props['ZONE NUMBER']}</div>
+                            </div>` : ''}
+                            ${props['Street View Spaces'] ? `
+                            <div class="popup-info-item">
+                                <div class="popup-info-label">Street View Spaces</div>
+                                <div class="popup-info-value">${props['Street View Spaces']}</div>
+                            </div>` : ''}
+                        </div>
+                        <div class="popup-stats-grid">
+                            <div class="popup-stat-card">
+                                <div class="popup-stat-label">Type</div>
+                                <div class="popup-stat-value">${geometryType === 'MultiLineString' ? 'Multi-segment' : 'Simple'}</div>
+                            </div>
+                            <div class="popup-stat-card">
+                                <div class="popup-stat-label">Points</div>
+                                <div class="popup-stat-value">${props.coordinateCount || 'N/A'}</div>
+                            </div>
+                            ${props.segmentCount ? `
+                            <div class="popup-stat-card">
+                                <div class="popup-stat-label">Segments</div>
+                                <div class="popup-stat-value">${props.segmentCount}</div>
+                            </div>` : ''}
+                            ${props.formattedDistance ? `
+                            <div class="popup-distance-card">
+                                <div class="popup-distance-label">Distance</div>
+                                <div class="popup-distance-value">${props.formattedDistance}</div>
+                            </div>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openRouteInfoWindow(latLng, props, geometryType) {
+            if (currentInfoWindow) {
+                currentInfoWindow.close();
+            }
+            currentInfoWindow = new google.maps.InfoWindow({
+                maxWidth: 280,
+                content: buildRoutePopupHtml(props, geometryType)
+            });
+            currentInfoWindow.setPosition(latLng);
+            currentInfoWindow.open(map);
+            google.maps.event.addListenerOnce(currentInfoWindow, 'closeclick', () => {
+                currentInfoWindow = null;
+            });
+        }
+
+        function lngLatFromGeoCoord(coord) {
+            return { lat: coord[1], lng: coord[0] };
+        }
+
+        // Add GeoJSON features to Google Maps
+        function addFeaturesToMap(features) {
+            let featureCount = 0;
+            const bounds = new google.maps.LatLngBounds();
+
+            const lineFeatures = [];
+            const pointFeatures = [];
+            const startPointFeatures = [];
+            const endPointFeatures = [];
+
+            features.forEach((feature) => {
+                if (!feature.geometry || !feature.geometry.coordinates) return;
+
+                const geometry = feature.geometry;
+
+                if (geometry.type === 'LineString' || geometry.type === 'MultiLineString') {
+                    lineFeatures.push(feature);
+
+                    if (geometry.type === 'LineString') {
+                        const startCoord = geometry.coordinates[0];
+                        const endCoord = geometry.coordinates[geometry.coordinates.length - 1];
+
+                        geometry.coordinates.forEach(coord => {
+                            bounds.extend(lngLatFromGeoCoord(coord));
+                        });
+
+                        startPointFeatures.push({
+                            type: 'Feature',
+                            properties: { ...feature.properties, pointType: 'start' },
+                            geometry: { type: 'Point', coordinates: startCoord }
+                        });
+
+                        endPointFeatures.push({
+                            type: 'Feature',
+                            properties: { ...feature.properties, pointType: 'end' },
+                            geometry: { type: 'Point', coordinates: endCoord }
+                        });
+                    } else if (geometry.type === 'MultiLineString') {
+                        geometry.coordinates.forEach((lineString, segmentIndex) => {
+                            lineString.forEach(coord => {
+                                bounds.extend(lngLatFromGeoCoord(coord));
+                            });
+
+                            const segmentStart = lineString[0];
+                            const segmentEnd = lineString[lineString.length - 1];
+
+                            startPointFeatures.push({
+                                type: 'Feature',
+                                properties: {
+                                    ...feature.properties,
+                                    pointType: 'segment-start',
+                                    segmentIndex: segmentIndex + 1,
+                                    totalSegments: geometry.coordinates.length
+                                },
+                                geometry: { type: 'Point', coordinates: segmentStart }
+                            });
+
+                            endPointFeatures.push({
+                                type: 'Feature',
+                                properties: {
+                                    ...feature.properties,
+                                    pointType: 'segment-end',
+                                    segmentIndex: segmentIndex + 1,
+                                    totalSegments: geometry.coordinates.length
+                                },
+                                geometry: { type: 'Point', coordinates: segmentEnd }
+                            });
+                        });
+                    }
+                } else if (geometry.type === 'Point') {
+                    pointFeatures.push(feature);
+                    bounds.extend(lngLatFromGeoCoord(geometry.coordinates));
+                }
+                featureCount++;
+            });
+
+            if (lineFeatures.length > 0) {
+                lineFeatures.forEach((feature) => {
+                    const geom = feature.geometry;
+                    const lineArrays = geom.type === 'LineString' ? [geom.coordinates] : geom.coordinates;
+
+                    lineArrays.forEach((coords) => {
+                        const path = coords.map(lngLatFromGeoCoord);
+
+                        const outline = new google.maps.Polyline({
+                            path,
+                            map,
+                            strokeColor: '#222222',
+                            strokeOpacity: 0.35,
+                            strokeWeight: 5,
+                            clickable: true,
+                            zIndex: 1
+                        });
+                        const line = new google.maps.Polyline({
+                            path,
+                            map,
+                            strokeColor: '#000000',
+                            strokeOpacity: 0.9,
+                            strokeWeight: 3,
+                            clickable: true,
+                            zIndex: 2
+                        });
+
+                        loadedMapOverlays.push(outline, line);
+
+                        const props = feature.properties;
+                        const geometryType = feature.geometry.type;
+                        const onRouteClick = (e) => {
+                            routeClickedFlag = true;
+                            openRouteInfoWindow(e.latLng, props, geometryType);
+                        };
+                        outline.addListener('click', onRouteClick);
+                        line.addListener('click', onRouteClick);
+
+                        const setPointer = () => map.setOptions({ draggableCursor: 'pointer' });
+                        const clearPointer = () => map.setOptions({ draggableCursor: '' });
+                        outline.addListener('mouseover', setPointer);
+                        outline.addListener('mouseout', clearPointer);
+                        line.addListener('mouseover', setPointer);
+                        line.addListener('mouseout', clearPointer);
+                    });
+                });
+
+                startPointFeatures.forEach((fp) => {
+                    const m = new google.maps.Marker({
+                        position: lngLatFromGeoCoord(fp.geometry.coordinates),
+                        map,
+                        icon: {
+                            path: google.maps.SymbolPath.CIRCLE,
+                            scale: 5,
+                            fillColor: '#3b82f6',
+                            fillOpacity: 1,
+                            strokeColor: '#ffffff',
+                            strokeWeight: 2
+                        },
+                        zIndex: 3
+                    });
+                    loadedMapOverlays.push(m);
+                });
+
+                endPointFeatures.forEach((fp) => {
+                    const m = new google.maps.Marker({
+                        position: lngLatFromGeoCoord(fp.geometry.coordinates),
+                        map,
+                        icon: {
+                            path: google.maps.SymbolPath.CIRCLE,
+                            scale: 5,
+                            fillColor: '#ef4444',
+                            fillOpacity: 1,
+                            strokeColor: '#ffffff',
+                            strokeWeight: 2
+                        },
+                        zIndex: 3
+                    });
+                    loadedMapOverlays.push(m);
+                });
+            }
+
+            pointFeatures.forEach((feature) => {
+                const pos = lngLatFromGeoCoord(feature.geometry.coordinates);
+                const html = `
+                    <div class="popup-content">
+                        <div class="popup-header">
+                            <h3 class="popup-title">
+                                <div class="popup-icon" style="background: #dc2626; border-radius: 50%;"></div>
+                                ${feature.properties['Mapper Name'] || 'Mapper'}
+                            </h3>
+                        </div>
+                        <div class="popup-body">
+                            <div class="popup-info-grid">
+                                ${feature.properties['ID'] ? `
+                                <div class="popup-info-item" style="border-left-color: #dc2626;">
+                                    <div class="popup-info-label">ID</div>
+                                    <div class="popup-info-value">${feature.properties['ID']}</div>
+                                </div>` : ''}
+                                ${feature.properties['ZONE NUMBER'] ? `
+                                <div class="popup-info-item" style="border-left-color: #dc2626;">
+                                    <div class="popup-info-label">Zone Number</div>
+                                    <div class="popup-info-value">${feature.properties['ZONE NUMBER']}</div>
+                                </div>` : ''}
+                                ${feature.properties['Street View Spaces'] ? `
+                                <div class="popup-info-item" style="border-left-color: #dc2626;">
+                                    <div class="popup-info-label">Street View Spaces</div>
+                                    <div class="popup-info-value">${feature.properties['Street View Spaces']}</div>
+                                </div>` : ''}
+                            </div>
+                            <div class="popup-stats-grid">
+                                <div class="popup-distance-card" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);">
+                                    <div class="popup-distance-label">Type</div>
+                                    <div class="popup-distance-value">📍 Point Location</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                const marker = new google.maps.Marker({
+                    position: pos,
+                    map,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 6,
+                        fillColor: '#dc2626',
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 2
+                    },
+                    zIndex: 4
+                });
+
+                marker.addListener('click', () => {
+                    routeClickedFlag = true;
+                    if (currentInfoWindow) {
+                        currentInfoWindow.close();
+                    }
+                    currentInfoWindow = new google.maps.InfoWindow({
+                        maxWidth: 220,
+                        content: html
+                    });
+                    currentInfoWindow.open(map, marker);
+                    google.maps.event.addListenerOnce(currentInfoWindow, 'closeclick', () => {
+                        currentInfoWindow = null;
+                    });
+                });
+
+                loadedMapOverlays.push(marker);
+            });
+
+            if (!bounds.isEmpty()) {
+                map.fitBounds(bounds, { top: 60, bottom: 60, left: 60, right: 60 });
+                google.maps.event.addListenerOnce(map, 'idle', () => {
+                    if (map.getZoom() > 16) {
+                        map.setZoom(16);
+                    }
+                });
+            }
+
+            return featureCount;
+        }
+
+        // Load GeoJSON data from Google Sheets
+        async function loadGeoJSONData() {
+            if (typeof google === 'undefined' || !map) {
+                showStatus('Map is still loading. Try again in a moment.', 'error');
+                return;
+            }
+
+            const sheetUrl = document.getElementById('sheetUrl').value;
+            const loadBtn = document.querySelector('.btn');
+            const loadBtnText = document.getElementById('loadBtnText');
+            
+            if (!sheetUrl) {
+                showStatus('Please enter a Google Sheets URL', 'error');
+                return;
+            }
+
+            const sheetId = extractSheetId(sheetUrl);
+            if (!sheetId) {
+                showStatus('Invalid Google Sheets URL', 'error');
+                return;
+            }
+
+            try {
+                loadBtn.disabled = true;
+                loadBtnText.innerHTML = '<div class="loading-spinner"></div>Loading...';
+                showStatus('Fetching data from Google Sheets...', 'loading');
+
+                // Clear existing features
+                clearMap();
+
+                const gid = extractGidFromSheetUrl(sheetUrl);
+                const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+                console.log('Fetching from URL:', csvUrl);
+                
+                const response = await fetch(csvUrl);
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch data: ${response.status}`);
+                }
+
+                const csvText = await response.text();
+                console.log('Raw CSV data (first 1000 chars):', csvText.substring(0, 1000));
+                console.log('CSV length:', csvText.length);
+                
+                // Check if we actually got CSV data or an error page
+                if (csvText.includes('<html>') || csvText.includes('<!DOCTYPE')) {
+                    throw new Error('Received HTML instead of CSV data. Make sure the Google Sheet is publicly accessible.');
+                }
+                
+                // Parse CSV with better handling and performance optimization
+                const rows = csvText.split('\n').map((row, rowIndex) => {
+                    if (!row.trim()) return []; // Skip empty rows
+                    
+                    console.log(`Raw row ${rowIndex}:`, row);
+                    
+                    // Simple CSV parsing (handles basic cases)
+                    const cells = [];
+                    let current = '';
+                    let inQuotes = false;
+                    
+                    for (let i = 0; i < row.length; i++) {
+                        const char = row[i];
+                        if (char === '"') {
+                            inQuotes = !inQuotes;
+                        } else if (char === ',' && !inQuotes) {
+                            cells.push(current.trim());
+                            current = '';
+                        } else {
+                            current += char;
+                        }
+                    }
+                    cells.push(current.trim());
+                    
+                    console.log(`CSV Row ${rowIndex} parsed into ${cells.length} cells:`, cells);
+                    return cells.filter(cell => cell.length > 0); // Remove empty cells
+                }).filter(row => row.length > 0); // Remove empty rows
+                
+                console.log(`Total rows after filtering: ${rows.length}`);
+                console.log('Sample of first few rows:', rows.slice(0, 3));
+
+                showStatus('Parsing GeoJSON data...', 'loading');
+                
+                const features = parseGeoJSONFromRows(rows);
+                
+                if (features.length === 0) {
+                    showStatus('No valid GeoJSON features found in the sheet', 'error');
+                    return;
+                }
+
+                // Store all features for filtering
+                allFeatures = features;
+                
+                // Populate filter dropdowns
+                populateFilters(features);
+
+                showStatus('Adding features to map...', 'loading');
+                
+                const featureCount = addFeaturesToMap(features);
+                
+                showStatus(`Successfully loaded ${featureCount} features!`, 'success');
+                
+                document.getElementById('clearBtn').disabled = false;
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+                showStatus(`Error: ${error.message}`, 'error');
+            } finally {
+                loadBtn.disabled = false;
+                loadBtnText.textContent = 'Load & Visualize Data';
+            }
+        }
+
+        function removeMapDataOverlays() {
+            loadedMapOverlays.forEach(overlay => {
+                if (overlay && overlay.setMap) {
+                    overlay.setMap(null);
+                }
+            });
+            loadedMapOverlays = [];
+            if (currentInfoWindow) {
+                currentInfoWindow.close();
+                currentInfoWindow = null;
+            }
+        }
+
+        // Clear all features from the map
+        function clearMap() {
+            removeMapDataOverlays();
+            allFeatures = [];
+
+            // Clear filters
+            document.getElementById('filterMapper').innerHTML = '<option value="">All Mappers</option>';
+            document.getElementById('filterZone').innerHTML = '<option value="">All Zones</option>';
+            document.getElementById('searchObjectId').value = '';
+            
+            currentFilters = {
+                mapper: '',
+                zone: '',
+                searchObjectId: ''
+            };
+            
+            document.getElementById('clearBtn').disabled = true;
+        }
+
+        // Handle Enter key in input
+        document.getElementById('sheetUrl').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loadGeoJSONData();
+            }
+        });
+
+        // Populate filter dropdowns
+        function populateFilters(features) {
+            const mappers = new Set();
+            const zones = new Set();
+            
+            // Create a mapping of mappers to their zones
+            window.mapperZoneMap = {};
+            
+            features.forEach(feature => {
+                const props = feature.properties;
+                const mapper = props['Mapper Name'];
+                const zone = props['ZONE NUMBER'];
+                
+                if (mapper) {
+                    mappers.add(mapper);
+                    if (!window.mapperZoneMap[mapper]) {
+                        window.mapperZoneMap[mapper] = new Set();
+                    }
+                    if (zone) {
+                        window.mapperZoneMap[mapper].add(zone);
+                    }
+                }
+                if (zone) zones.add(zone);
+            });
+            
+            // Store all zones for reference
+            window.allZones = Array.from(zones).sort((a, b) => a - b);
+            
+            // Populate mapper dropdown
+            const mapperSelect = document.getElementById('filterMapper');
+            mapperSelect.innerHTML = '<option value="">All Mappers</option>';
+            Array.from(mappers).sort().forEach(mapper => {
+                const option = document.createElement('option');
+                option.value = mapper;
+                option.textContent = mapper;
+                mapperSelect.appendChild(option);
+            });
+            
+            // Populate zone dropdown with all zones initially
+            populateZoneDropdown();
+        }
+        
+        // Populate zone dropdown based on selected mapper
+        function populateZoneDropdown(selectedMapper = null) {
+            const zoneSelect = document.getElementById('filterZone');
+            const currentZoneValue = zoneSelect.value; // Remember current selection
+            zoneSelect.innerHTML = '<option value="">All Zones</option>';
+            
+            let zonesToShow;
+            if (selectedMapper && window.mapperZoneMap && window.mapperZoneMap[selectedMapper]) {
+                // Show only zones for the selected mapper
+                zonesToShow = Array.from(window.mapperZoneMap[selectedMapper]).sort((a, b) => a - b);
+            } else {
+                // Show all zones
+                zonesToShow = window.allZones || [];
+            }
+            
+            zonesToShow.forEach(zone => {
+                const option = document.createElement('option');
+                option.value = zone;
+                option.textContent = zone;
+                zoneSelect.appendChild(option);
+            });
+            
+            // Try to restore the previous zone selection if it's still available
+            if (currentZoneValue && zonesToShow.includes(currentZoneValue)) {
+                zoneSelect.value = currentZoneValue;
+            } else if (currentZoneValue && selectedMapper) {
+                // If the previously selected zone is not available for this mapper, clear the zone filter
+                zoneSelect.value = '';
+                // Update the current filters
+                currentFilters.zone = '';
+            }
+        }
+
+        // Filter features based on current filters
+        function getFilteredFeatures() {
+            return allFeatures.filter(feature => {
+                const props = feature.properties;
+                
+                // Mapper filter
+                if (currentFilters.mapper && props['Mapper Name'] !== currentFilters.mapper) {
+                    return false;
+                }
+                
+                // Zone filter
+                if (currentFilters.zone && props['ZONE NUMBER'] !== currentFilters.zone) {
+                    return false;
+                }
+                
+                // ID search
+                if (currentFilters.searchObjectId && 
+                    !props['ID'].toString().includes(currentFilters.searchObjectId)) {
+                    return false;
+                }
+                
+                return true;
+            });
+        }
+
+        // Apply filters to map
+        function applyFilters() {
+            const selectedMapper = document.getElementById('filterMapper').value;
+            const previousMapper = currentFilters.mapper;
+            
+            currentFilters.mapper = selectedMapper;
+            currentFilters.zone = document.getElementById('filterZone').value;
+            
+            // If mapper selection changed, update zone dropdown
+            if (selectedMapper !== previousMapper) {
+                populateZoneDropdown(selectedMapper);
+                // Update zone filter value after dropdown is populated
+                currentFilters.zone = document.getElementById('filterZone').value;
+            }
+            
+            updateMapWithFilters();
+        }
+
+        // Search for ID with zoom and popup
+        function searchObjectId() {
+            const searchValue = document.getElementById('searchObjectId').value.trim();
+            currentFilters.searchObjectId = searchValue;
+            
+            if (!searchValue) {
+                updateMapWithFilters();
+                return;
+            }
+            
+            // Find the specific object by ID
+            const foundFeature = allFeatures.find(feature => {
+                return feature.properties['ID'] && 
+                       feature.properties['ID'].toString().includes(searchValue);
+            });
+            
+            if (foundFeature) {
+                // Update map with all features (don't hide others)
+                clearMapFeatures();
+                addFeaturesToMap(allFeatures);
+                
+                // Zoom to the found feature
+                zoomToFeature(foundFeature);
+                
+                // Show info window for the found feature after a small delay
+                setTimeout(() => {
+                    showFeaturePopup(foundFeature);
+                }, 500);
+                
+                showStatus(`Found ID: ${foundFeature.properties['ID']}`, 'success');
+            } else {
+                // If no exact match, show filtered results
+                updateMapWithFilters();
+                if (getFilteredFeatures().length === 0) {
+                    showStatus(`No features found with ID containing: ${searchValue}`, 'error');
+                }
+            }
+        }
+
+        // Zoom to a specific feature
+        function zoomToFeature(feature) {
+            const geometry = feature.geometry;
+            const bounds = new google.maps.LatLngBounds();
+
+            if (geometry.type === 'LineString') {
+                geometry.coordinates.forEach(coord => {
+                    bounds.extend(lngLatFromGeoCoord(coord));
+                });
+            } else if (geometry.type === 'MultiLineString') {
+                geometry.coordinates.forEach(lineString => {
+                    lineString.forEach(coord => {
+                        bounds.extend(lngLatFromGeoCoord(coord));
+                    });
+                });
+            } else if (geometry.type === 'Point') {
+                const [lng, lat] = geometry.coordinates;
+                const padding = 0.002;
+                bounds.extend({ lat: lat - padding, lng: lng - padding });
+                bounds.extend({ lat: lat + padding, lng: lng + padding });
+            }
+
+            if (!bounds.isEmpty()) {
+                map.fitBounds(bounds, { top: 100, bottom: 100, left: 100, right: 100 });
+                google.maps.event.addListenerOnce(map, 'idle', () => {
+                    if (map.getZoom() > 18) {
+                        map.setZoom(18);
+                    }
+                });
+            }
+        }
+        
+        // Show info window for a specific feature
+        function showFeaturePopup(feature) {
+            if (currentInfoWindow) {
+                currentInfoWindow.close();
+                currentInfoWindow = null;
+            }
+
+            const geometry = feature.geometry;
+            const props = feature.properties;
+            let popupLocation;
+
+            if (geometry.type === 'Point') {
+                popupLocation = geometry.coordinates;
+            } else if (geometry.type === 'LineString') {
+                const midIndex = Math.floor(geometry.coordinates.length / 2);
+                popupLocation = geometry.coordinates[midIndex];
+            } else if (geometry.type === 'MultiLineString') {
+                const firstLine = geometry.coordinates[0];
+                const midIndex = Math.floor(firstLine.length / 2);
+                popupLocation = firstLine[midIndex];
+            }
+
+            if (!popupLocation) return;
+
+            const isMultiSegment = props.segmentCount > 1;
+            const routeColor = geometry.type === 'Point' ? '#dc2626' : (isMultiSegment ? '#16a34a' : '#2563eb');
+            const icon = geometry.type === 'Point' ? '📍' : (isMultiSegment ? '🛣️' : '📏');
+
+            const content = `
+                <div class="popup-content">
+                    <div class="popup-header">
+                        <h3 class="popup-title">
+                            <div class="popup-icon" style="background: ${routeColor}; ${geometry.type === 'Point' ? 'border-radius: 50%;' : ''}"></div>
+                            ${props['Mapper Name'] || 'Mapper'}
+                        </h3>
+                    </div>
+                    <div class="popup-body">
+                        <div class="popup-info-grid">
+                            ${props['ID'] ? `
+                            <div class="popup-info-item" style="border-left-color: ${routeColor};">
+                                <div class="popup-info-label">ID</div>
+                                <div class="popup-info-value">${props['ID']}</div>
+                            </div>` : ''}
+                            ${props['ZONE NUMBER'] ? `
+                            <div class="popup-info-item" style="border-left-color: ${routeColor};">
+                                <div class="popup-info-label">Zone Number</div>
+                                <div class="popup-info-value">${props['ZONE NUMBER']}</div>
+                            </div>` : ''}
+                            ${props['Street View Spaces'] ? `
+                            <div class="popup-info-item" style="border-left-color: ${routeColor};">
+                                <div class="popup-info-label">Street View Spaces</div>
+                                <div class="popup-info-value">${props['Street View Spaces']}</div>
+                            </div>` : ''}
+                        </div>
+                        <div class="popup-stats-grid">
+                            <div class="popup-stat-card">
+                                <div class="popup-stat-label">Type</div>
+                                <div class="popup-stat-value">${geometry.type === 'Point' ? 'Point' : (geometry.type === 'MultiLineString' ? 'Multi-segment' : 'Line')}</div>
+                            </div>
+                            ${geometry.type !== 'Point' ? `
+                            <div class="popup-stat-card">
+                                <div class="popup-stat-label">Points</div>
+                                <div class="popup-stat-value">${props.coordinateCount || 'N/A'}</div>
+                            </div>` : ''}
+                            ${props.segmentCount ? `
+                            <div class="popup-stat-card">
+                                <div class="popup-stat-label">Segments</div>
+                                <div class="popup-stat-value">${props.segmentCount}</div>
+                            </div>` : ''}
+                            ${props.formattedDistance ? `
+                            <div class="popup-distance-card" style="background: linear-gradient(135deg, ${routeColor} 0%, ${routeColor}cc 100%);">
+                                <div class="popup-distance-label">Distance</div>
+                                <div class="popup-distance-value">${props.formattedDistance}</div>
+                            </div>` : ''}
+                            ${geometry.type === 'Point' ? `
+                            <div class="popup-distance-card" style="background: linear-gradient(135deg, ${routeColor} 0%, ${routeColor}cc 100%);">
+                                <div class="popup-distance-label">Type</div>
+                                <div class="popup-distance-value">${icon} Point Location</div>
+                            </div>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            currentInfoWindow = new google.maps.InfoWindow({
+                maxWidth: 280,
+                content
+            });
+            currentInfoWindow.setPosition(lngLatFromGeoCoord(popupLocation));
+            currentInfoWindow.open(map);
+            google.maps.event.addListenerOnce(currentInfoWindow, 'closeclick', () => {
+                currentInfoWindow = null;
+            });
+        }
+
+        // Handle Enter key press in search
+        function handleSearchKeyPress(event) {
+            if (event.key === 'Enter') {
+                searchObjectId();
+            }
+        }
+
+        // Update map with filtered features
+        function updateMapWithFilters() {
+            // Clear existing features
+            clearMapFeatures();
+            
+            // Get filtered features
+            const filteredFeatures = getFilteredFeatures();
+            
+            // Add filtered features to map
+            if (filteredFeatures.length > 0) {
+                addFeaturesToMap(filteredFeatures);
+                showStatus(`Showing ${filteredFeatures.length} of ${allFeatures.length} features`, 'success');
+                document.getElementById('clearBtn').disabled = false;
+            } else {
+                showStatus('No features match the current filters', 'error');
+            }
+        }
+
+        // Clear only map features (for filtering), not the filter dropdowns
+        function clearMapFeatures() {
+            removeMapDataOverlays();
+        }
+
+        // Clear all filters
+        function clearFilters() {
+            document.getElementById('filterMapper').value = '';
+            document.getElementById('filterZone').value = '';
+            document.getElementById('searchObjectId').value = '';
+            
+            // Reset zone dropdown to show all zones
+            populateZoneDropdown();
+            
+            currentFilters = {
+                mapper: '',
+                zone: '',
+                searchObjectId: ''
+            };
+            
+            // Show all features
+            if (allFeatures.length > 0) {
+                clearMapFeatures();
+                addFeaturesToMap(allFeatures);
+                showStatus(`Showing all ${allFeatures.length} features`, 'success');
+            }
+        }
+
+        // Change map type (Google base map)
+        function changeMapStyle() {
+            const selectedStyle = document.getElementById('mapStyle').value;
+            const typeMap = {
+                terrain: google.maps.MapTypeId.TERRAIN,
+                roadmap: google.maps.MapTypeId.ROADMAP,
+                satellite: google.maps.MapTypeId.SATELLITE,
+                hybrid: google.maps.MapTypeId.HYBRID
+            };
+            map.setMapTypeId(typeMap[selectedStyle] || google.maps.MapTypeId.TERRAIN);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === 'YOUR_GOOGLE_MAPS_API_KEY') {
+                const statusDiv = document.getElementById('status');
+                statusDiv.className = 'status error';
+                statusDiv.style.display = 'block';
+                statusDiv.innerHTML = 'Set GOOGLE_MAPS_API_KEY in index.html to your Maps JavaScript API key (enable Maps JavaScript API in Google Cloud Console).';
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}&callback=initGoogleMapCallback`;
+            script.async = true;
+            script.defer = true;
+            window.initGoogleMapCallback = initGoogleMap;
+            document.head.appendChild(script);
+        });
+    </script>
+</body>
+</html>
