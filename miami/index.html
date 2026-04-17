@@ -27,12 +27,188 @@
             transition: margin-left 0.3s ease, width 0.3s ease;
         }
 
-        #street-view {
+        #street-view-panel {
             height: 55vh;
             position: relative;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
             min-height: 20vh;
             max-height: 80vh;
+        }
+
+        #street-view {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        .sv-date-top-host {
+            pointer-events: none;
+            margin: 8px 0 0 8px;
+        }
+
+        .sv-date-bottom-host {
+            pointer-events: none;
+            width: min(calc(100vw - 380px), 960px);
+            max-width: 100%;
+            margin: 0 auto 4px;
+        }
+
+        .sv-date-overlay {
+            max-width: min(320px, 92%);
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: rgba(20, 20, 20, 0.82);
+            color: #fff;
+            font-size: 12px;
+            line-height: 1.45;
+            pointer-events: none;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+            display: none;
+        }
+
+        .sv-date-overlay .sv-date-overlay-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 8px 10px;
+        }
+
+        .sv-date-overlay .sv-capture-label {
+            color: rgba(255, 255, 255, 0.75);
+            font-size: 11px;
+        }
+
+        .sv-date-overlay .sv-capture-date {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .sv-date-overlay button.sv-latest-link {
+            pointer-events: auto;
+            background: transparent;
+            border: none;
+            color: #8ab4f8;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 0;
+            text-decoration: underline;
+            font-family: inherit;
+        }
+
+        .sv-date-overlay button.sv-latest-link:hover {
+            color: #adc7ff;
+        }
+
+        .sv-date-rail {
+            display: none;
+            flex-direction: column;
+            pointer-events: none;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.55) 55%, transparent 100%);
+            padding: 10px 8px 8px;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .sv-date-rail.visible {
+            display: flex;
+        }
+
+        .sv-date-rail-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding: 0 4px;
+            pointer-events: auto;
+        }
+
+        .sv-date-rail-title {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+
+        .sv-date-rail-latest {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #e8f0fe;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .sv-date-rail-latest:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .sv-date-rail-scroll {
+            display: flex;
+            flex-direction: row;
+            gap: 8px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 4px 2px 2px;
+            scrollbar-width: thin;
+            pointer-events: auto;
+        }
+
+        .sv-date-rail-scroll::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .sv-date-rail-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 3px;
+        }
+
+        .sv-date-chip {
+            flex: 0 0 auto;
+            width: 108px;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            padding: 0;
+            cursor: pointer;
+            background: rgba(40, 40, 40, 0.95);
+            color: #fff;
+            font-family: inherit;
+            text-align: left;
+            overflow: hidden;
+            transition: border-color 0.15s ease, transform 0.12s ease;
+        }
+
+        .sv-date-chip:hover {
+            transform: translateY(-1px);
+        }
+
+        .sv-date-chip.selected {
+            border-color: #2196f3;
+            box-shadow: 0 0 0 1px rgba(33, 150, 243, 0.35);
+        }
+
+        .sv-date-chip-thumb-wrap {
+            width: 100%;
+            height: 64px;
+            background: #2a2a2a;
+            position: relative;
+        }
+
+        .sv-date-chip-thumb-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .sv-date-chip-label {
+            padding: 6px 8px 8px;
+            font-size: 11px;
+            font-weight: 600;
         }
 
         /* Resizable divider */
@@ -254,6 +430,11 @@
             background: #2196F3;
             color: white;
             border-color: #2196F3;
+        }
+
+        .draw-button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
         }
 
         .draw-button.full-width {
@@ -1026,7 +1207,13 @@
                     </div>
                     <div class="info-item">
                         <strong>Street View:</strong><br>
-                        <span>Updated automatically when location is selected</span>
+                        <span>Updated automatically when location is selected. Use the <strong>Street View dates</strong> control below (and the strip on the panorama) when Google returns multiple capture epochs.</span>
+                    </div>
+                    <div class="info-item" id="sv-era-sidebar-wrap" style="display: none;">
+                        <strong>Street View dates</strong><br>
+                        <select id="sv-era-sidebar" aria-label="Street View capture date" style="width: 100%; margin-top: 6px; padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 12px;"></select>
+                        <a id="sv-era-open-maps" href="#" target="_blank" rel="noopener noreferrer" style="display: none; margin-top: 8px; font-size: 11px; color: #1976d2;">Open in Google Maps (full timeline)</a>
+                        <div id="sv-era-sidebar-hint" style="margin-top: 6px; font-size: 11px; color: #666;"></div>
                     </div>
                 </div>
             </div>
@@ -1040,6 +1227,7 @@
                 <br><strong>🎯 Bendable Lines:</strong> Double-click any line to add control points (orange dots) that let you bend the line into curves. Right-click control points to remove them.
                 <br><strong>🔄 Whole-Line Dragging:</strong> Drag anywhere on the line (not just endpoints) to move the entire line to a new position while maintaining its shape and curve.
                 <br><strong>Auto-MultiLine:</strong> Draw individual lines normally - after 2+ lines, they automatically combine into a MultiLineString in the GeoJSON output with total measurements.
+                <br><strong>↩ Undo line:</strong> Removes the most recently finished line (sidebar button or Ctrl+Z when not typing in a text field).
             </div>
             <div class="drawing-controls">
                 <button id="pointBtn" class="draw-button" onclick="setDrawingMode('point')">
@@ -1057,6 +1245,9 @@
                 <div class="draw-button" style="grid-column: 1 / -1; background: rgba(156, 39, 176, 0.1); border: 1px solid #9C27B0; color: #7B1FA2; cursor: default;">
                     ℹ️ Lines auto-combine into MultiLineString
                 </div>
+                <button id="undoLastLineBtn" type="button" class="draw-button" onclick="undoLastDrawnLine()" disabled title="Remove the most recently finished line (Ctrl+Z)">
+                    ↩ Undo line
+                </button>
                 <button class="draw-button" onclick="clearDrawings()">
                     🗑️ Clear
                 </button>
@@ -1273,6 +1464,14 @@
                                 <span class="key">ESC</span>
                             </div>
                         </div>
+                        <div class="shortcut-item">
+                            <span class="shortcut-description">Undo Last Line</span>
+                            <div class="shortcut-keys">
+                                <span class="key modifier">Ctrl</span>
+                                <span class="key-separator">+</span>
+                                <span class="key">Z</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -1337,7 +1536,9 @@
     </div>
 
     <div class="map-container">
-        <div id="street-view"></div>
+        <div id="street-view-panel">
+            <div id="street-view"></div>
+        </div>
         <div class="resize-divider" id="resize-divider"></div>
         <div id="main-map"></div>
     </div>
@@ -1382,6 +1583,449 @@
         let customMarkers = [];
         let markerPlacementActive = false;
         let markerCounter = 0;
+
+        let streetViewService = null;
+        let svDateRailDebounceTimer = null;
+        let svDateTopHost = null;
+        let svDateBottomHost = null;
+        let svDateHostsInstalled = false;
+
+        function getGoogleMapsApiKeyFromPage() {
+            const el = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
+            if (!el || !el.src) return '';
+            try {
+                return new URL(el.src, window.location.href).searchParams.get('key') || '';
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function getStreetViewTimeEntryDateFieldName(entry) {
+            if (!entry || typeof entry !== 'object') return null;
+            const keys = Object.keys(entry).filter((k) => k !== 'pano');
+            return keys.length ? keys[0] : null;
+        }
+
+        function parseStreetViewTimeEntryDate(entry) {
+            const field = getStreetViewTimeEntryDateFieldName(entry);
+            if (!field) return null;
+            const raw = entry[field];
+            if (raw instanceof Date) return isNaN(raw.getTime()) ? null : raw;
+            if (typeof raw === 'string') {
+                const d = new Date(raw);
+                return isNaN(d.getTime()) ? null : d;
+            }
+            return null;
+        }
+
+        function formatStreetViewMonthYear(date) {
+            if (!date || isNaN(date.getTime())) return 'Unknown date';
+            return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+        }
+
+        function formatStreetViewImageDateString(imageDateStr) {
+            if (!imageDateStr || typeof imageDateStr !== 'string') return null;
+            const parts = imageDateStr.split('-');
+            if (parts.length >= 2) {
+                const y = parseInt(parts[0], 10);
+                const m = parseInt(parts[1], 10) - 1;
+                if (!isNaN(y) && !isNaN(m)) {
+                    return formatStreetViewMonthYear(new Date(y, m, 1));
+                }
+            }
+            return imageDateStr;
+        }
+
+        function isStreetViewServiceResultOk(res) {
+            if (!res) return false;
+            const st = res.status;
+            if (st === 'OK') return true;
+            if (
+                typeof google !== 'undefined' &&
+                google.maps &&
+                google.maps.StreetViewStatus &&
+                st === google.maps.StreetViewStatus.OK
+            ) {
+                return true;
+            }
+            if (
+                st === undefined &&
+                res.data &&
+                res.data.location &&
+                res.data.location.pano
+            ) {
+                return true;
+            }
+            return false;
+        }
+
+        function extractHistoricalTimeEntries(data) {
+            if (!data || typeof data !== 'object') return [];
+            const out = [];
+
+            function considerArray(arr) {
+                if (!Array.isArray(arr) || !arr.length) return;
+                const first = arr[0];
+                if (!first || typeof first !== 'object' || !first.pano) return;
+                if (Object.keys(first).filter((k) => k !== 'pano').length === 0) return;
+                arr.forEach((e) => out.push(e));
+            }
+
+            considerArray(data.time);
+            const skip = new Set([
+                'tiles',
+                'links',
+                'location',
+                'copyright',
+                'imageDate',
+                'time'
+            ]);
+            Object.keys(data).forEach((key) => {
+                if (skip.has(key)) return;
+                const val = data[key];
+                if (Array.isArray(val) && val.length) considerArray(val);
+            });
+            return out;
+        }
+
+        function mergeTimeEntryMaps(timeEntries) {
+            const mergedByPano = new Map();
+            timeEntries.forEach((entry, idx) => {
+                if (!entry || !entry.pano) return;
+                const dt = parseStreetViewTimeEntryDate(entry);
+                const sortKey = dt ? dt.getTime() : idx;
+                const prev = mergedByPano.get(entry.pano);
+                if (!prev || sortKey > prev.sortKey) {
+                    mergedByPano.set(entry.pano, {
+                        pano: entry.pano,
+                        date: dt,
+                        sortKey
+                    });
+                }
+            });
+            return Array.from(mergedByPano.values()).sort(
+                (a, b) => b.sortKey - a.sortKey
+            );
+        }
+
+        function buildGoogleMapsStreetViewUrl(latLng) {
+            if (!latLng || !streetView) return '#';
+            const lat = typeof latLng.lat === 'function' ? latLng.lat() : latLng.lat;
+            const lng = typeof latLng.lng === 'function' ? latLng.lng() : latLng.lng;
+            const pov = streetView.getPov ? streetView.getPov() : { heading: 0, pitch: 0 };
+            const heading = pov && typeof pov.heading === 'number' ? pov.heading : 0;
+            const pitch = pov && typeof pov.pitch === 'number' ? pov.pitch : 0;
+            return (
+                'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=' +
+                encodeURIComponent(lat + ',' + lng) +
+                '&heading=' +
+                encodeURIComponent(String(heading)) +
+                '&pitch=' +
+                encodeURIComponent(String(pitch)) +
+                '&fov=80'
+            );
+        }
+
+        function ensureStreetViewDateControlHosts() {
+            if (svDateHostsInstalled || !streetView) return;
+            svDateTopHost = document.createElement('div');
+            svDateTopHost.className = 'sv-date-top-host';
+            svDateBottomHost = document.createElement('div');
+            svDateBottomHost.className = 'sv-date-bottom-host';
+            streetView.controls[google.maps.ControlPosition.TOP_LEFT].push(
+                svDateTopHost
+            );
+            streetView.controls[google.maps.ControlPosition.BOTTOM_CENTER].push(
+                svDateBottomHost
+            );
+            svDateHostsInstalled = true;
+        }
+
+        function hideStreetViewDateUi() {
+            if (svDateTopHost) svDateTopHost.innerHTML = '';
+            if (svDateBottomHost) svDateBottomHost.innerHTML = '';
+            const wrap = document.getElementById('sv-era-sidebar-wrap');
+            const sel = document.getElementById('sv-era-sidebar');
+            const hint = document.getElementById('sv-era-sidebar-hint');
+            const link = document.getElementById('sv-era-open-maps');
+            if (wrap) wrap.style.display = 'none';
+            if (sel) {
+                sel.innerHTML = '';
+                sel.onchange = null;
+            }
+            if (hint) hint.textContent = '';
+            if (link) {
+                link.style.display = 'none';
+                link.href = '#';
+            }
+        }
+
+        function updateStreetViewDateSidebar(enriched, captureLabel, latLng) {
+            const wrap = document.getElementById('sv-era-sidebar-wrap');
+            const sel = document.getElementById('sv-era-sidebar');
+            const hint = document.getElementById('sv-era-sidebar-hint');
+            const link = document.getElementById('sv-era-open-maps');
+            if (!wrap || !sel || !hint || !link) return;
+
+            wrap.style.display = 'block';
+            sel.innerHTML = '';
+            enriched.forEach((item) => {
+                const opt = document.createElement('option');
+                opt.value = item.pano;
+                opt.textContent = item.date
+                    ? formatStreetViewMonthYear(item.date)
+                    : captureLabel || 'Current view';
+                sel.appendChild(opt);
+            });
+            const cur = streetView.getPano();
+            Array.from(sel.options).forEach((o) => {
+                o.selected = o.value === cur;
+            });
+            sel.onchange = () => {
+                streetView.setPano(sel.value);
+            };
+
+            if (enriched.length > 1) {
+                sel.style.display = 'block';
+                hint.textContent =
+                    'Multiple capture dates from Google. Pick one to swap the embedded panorama.';
+            } else {
+                sel.style.display = enriched.length === 1 ? 'block' : 'none';
+                hint.textContent =
+                    enriched.length === 1
+                        ? 'Only one capture date was returned for this spot in the Maps API. Use “Open in Google Maps” for Google’s full Street View timeline when it shows more imagery.'
+                        : 'Move to a street with coverage, then try again.';
+            }
+
+            if (latLng) {
+                link.href = buildGoogleMapsStreetViewUrl(latLng);
+                link.style.display = 'block';
+            } else {
+                link.style.display = 'none';
+            }
+        }
+
+        function applyStreetViewDateMetadata(data) {
+            ensureStreetViewDateControlHosts();
+            if (!svDateTopHost || !svDateBottomHost || !data) return;
+
+            const captureLabel =
+                formatStreetViewImageDateString(data.imageDate) || '—';
+
+            let enriched = mergeTimeEntryMaps(extractHistoricalTimeEntries(data));
+            const curPano = streetView.getPano();
+            const locPano = data.location && data.location.pano;
+            if (!enriched.length && (curPano || locPano)) {
+                const id = curPano || locPano;
+                let dt = null;
+                let sk = 0;
+                if (data.imageDate) {
+                    const parts = String(data.imageDate).split('-');
+                    if (parts.length >= 2) {
+                        const y = parseInt(parts[0], 10);
+                        const m = parseInt(parts[1], 10) - 1;
+                        if (!isNaN(y) && !isNaN(m)) {
+                            dt = new Date(y, m, 1);
+                            sk = dt.getTime();
+                        }
+                    }
+                }
+                enriched = [{ pano: id, date: dt, sortKey: sk }];
+            }
+
+            const latLngForLink =
+                (streetView.getPosition && streetView.getPosition()) ||
+                (data.location && data.location.latLng) ||
+                null;
+            updateStreetViewDateSidebar(enriched, captureLabel, latLngForLink);
+
+            svDateTopHost.innerHTML = '';
+            const overlay = document.createElement('div');
+            overlay.className = 'sv-date-overlay';
+            overlay.style.display = 'block';
+
+            const capRow = document.createElement('div');
+            capRow.className = 'sv-date-overlay-row';
+            const lab = document.createElement('span');
+            lab.className = 'sv-capture-label';
+            lab.textContent = 'Image capture';
+            const dat = document.createElement('span');
+            dat.className = 'sv-capture-date';
+            dat.textContent = captureLabel;
+            capRow.appendChild(lab);
+            capRow.appendChild(dat);
+            if (enriched.length > 1) {
+                const latestLink = document.createElement('button');
+                latestLink.type = 'button';
+                latestLink.className = 'sv-latest-link';
+                latestLink.textContent = 'See latest date';
+                latestLink.addEventListener('click', () => {
+                    streetView.setPano(enriched[0].pano);
+                });
+                capRow.appendChild(latestLink);
+            }
+            overlay.appendChild(capRow);
+            svDateTopHost.appendChild(overlay);
+
+            svDateBottomHost.innerHTML = '';
+            const rail = document.createElement('div');
+            rail.className = 'sv-date-rail';
+            rail.setAttribute('role', 'region');
+            rail.setAttribute('aria-label', 'Street View historical imagery');
+
+            if (enriched.length <= 1) {
+                rail.classList.remove('visible');
+                svDateBottomHost.appendChild(rail);
+                return;
+            }
+
+            const currentPano = streetView.getPano();
+            const mapsKey = getGoogleMapsApiKeyFromPage();
+
+            const header = document.createElement('div');
+            header.className = 'sv-date-rail-header';
+            const title = document.createElement('span');
+            title.className = 'sv-date-rail-title';
+            title.textContent = 'Historical imagery';
+            const latestBtn = document.createElement('button');
+            latestBtn.type = 'button';
+            latestBtn.className = 'sv-date-rail-latest';
+            latestBtn.textContent = 'Latest';
+            latestBtn.addEventListener('click', () =>
+                streetView.setPano(enriched[0].pano)
+            );
+            header.appendChild(title);
+            header.appendChild(latestBtn);
+
+            const scroll = document.createElement('div');
+            scroll.className = 'sv-date-rail-scroll';
+
+            enriched.forEach((item) => {
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className =
+                    'sv-date-chip' + (item.pano === currentPano ? ' selected' : '');
+                const thumbWrap = document.createElement('div');
+                thumbWrap.className = 'sv-date-chip-thumb-wrap';
+                if (mapsKey) {
+                    const img = document.createElement('img');
+                    img.alt = '';
+                    img.loading = 'lazy';
+                    img.src =
+                        'https://maps.googleapis.com/maps/api/streetview?size=200x120&pano=' +
+                        encodeURIComponent(item.pano) +
+                        '&fov=90&pitch=0&key=' +
+                        encodeURIComponent(mapsKey);
+                    img.addEventListener('error', () => {
+                        img.remove();
+                    });
+                    thumbWrap.appendChild(img);
+                }
+                const label = document.createElement('div');
+                label.className = 'sv-date-chip-label';
+                label.textContent = item.date
+                    ? formatStreetViewMonthYear(item.date)
+                    : 'Unknown';
+                chip.appendChild(thumbWrap);
+                chip.appendChild(label);
+                chip.addEventListener('click', () => streetView.setPano(item.pano));
+                scroll.appendChild(chip);
+            });
+
+            rail.appendChild(header);
+            rail.appendChild(scroll);
+            rail.classList.add('visible');
+            svDateBottomHost.appendChild(rail);
+        }
+
+        async function fetchMergedStreetViewPanoramaMetadata(panoId, latLng) {
+            if (!streetViewService || !panoId) return null;
+            const pref =
+                google.maps.StreetViewPreference &&
+                google.maps.StreetViewPreference.NEAREST
+                    ? google.maps.StreetViewPreference.NEAREST
+                    : 'nearest';
+
+            const reqPano = streetViewService
+                .getPanorama({ pano: panoId })
+                .catch(() => null);
+            const reqLoc =
+                latLng &&
+                streetViewService
+                    .getPanorama({
+                        location: latLng,
+                        radius: 80,
+                        preference: pref
+                    })
+                    .catch(() => null);
+
+            const [panRes, locRes] = await Promise.all([
+                reqPano,
+                latLng ? reqLoc : Promise.resolve(null)
+            ]);
+
+            const okChunks = [];
+            if (panRes && isStreetViewServiceResultOk(panRes) && panRes.data) {
+                okChunks.push(panRes.data);
+            }
+            if (locRes && isStreetViewServiceResultOk(locRes) && locRes.data) {
+                okChunks.push(locRes.data);
+            }
+            if (!okChunks.length) return null;
+
+            const merged = Object.assign({}, okChunks[0]);
+            const allTimes = [];
+            okChunks.forEach((d) =>
+                allTimes.push(...extractHistoricalTimeEntries(d))
+            );
+            if (allTimes.length) merged.time = allTimes;
+
+            const panoChunk = okChunks.find(
+                (c) => c.location && c.location.pano === panoId
+            );
+            if (panoChunk && panoChunk.imageDate) merged.imageDate = panoChunk.imageDate;
+            else if (okChunks[0].imageDate) merged.imageDate = okChunks[0].imageDate;
+
+            return merged;
+        }
+
+        function scheduleStreetViewDateMetadataRefresh() {
+            clearTimeout(svDateRailDebounceTimer);
+            svDateRailDebounceTimer = setTimeout(() => {
+                void runStreetViewDateMetadataRefresh();
+            }, 100);
+        }
+
+        async function runStreetViewDateMetadataRefresh() {
+            if (!streetView || !streetViewService) return;
+            const pano = streetView.getPano();
+            if (!pano) {
+                hideStreetViewDateUi();
+                return;
+            }
+            const pos = streetView.getPosition ? streetView.getPosition() : null;
+            try {
+                const merged = await fetchMergedStreetViewPanoramaMetadata(
+                    pano,
+                    pos || null
+                );
+                if (!merged) {
+                    hideStreetViewDateUi();
+                    return;
+                }
+                applyStreetViewDateMetadata(merged);
+            } catch (e) {
+                hideStreetViewDateUi();
+            }
+        }
+
+        function setupStreetViewDateRail() {
+            streetViewService = new google.maps.StreetViewService();
+            streetView.addListener('pano_changed', scheduleStreetViewDateMetadataRefresh);
+            streetView.addListener('status_changed', scheduleStreetViewDateMetadataRefresh);
+
+            setTimeout(() => scheduleStreetViewDateMetadataRefresh(), 700);
+        }
 
         function initMap() {
             showLoading(true);
@@ -1433,6 +2077,7 @@
                     pov: { heading: 0, pitch: 0 },
                     zoom: 1,
                     addressControl: true,
+                    imageDateControl: true,
                     linksControl: true,
                     panControl: true,
                     enableCloseButton: false
@@ -1440,6 +2085,8 @@
             );
             
             mainMap.setStreetView(streetView);
+
+            setupStreetViewDateRail();
             
             // Add event listeners for direction line updates
             streetView.addListener('position_changed', updateDirectionLine);
@@ -2501,6 +3148,8 @@
                     showToast('Enhanced line created! Draw another line to auto-create MultiLineString.');
                 }
 
+                updateUndoLastLineButton();
+
                 // Reset for next line
                 currentLine = null;
                 currentLineCoords = [];
@@ -3121,7 +3770,76 @@
             createStreetViewLines();
         }
 
+        function removeMeasurementLabelFromRegistry(label) {
+            if (!label) return;
+            const i = measurementLabels.indexOf(label);
+            if (i > -1) measurementLabels.splice(i, 1);
+            label.setMap(null);
+        }
 
+        function removeDrawnLineGraphics(line) {
+            if (line.controlMarkers) {
+                line.controlMarkers.forEach(marker => marker.setMap(null));
+            }
+            if (line.markers) {
+                line.markers.forEach(marker => marker.setMap(null));
+            }
+            if (line.polyline) {
+                line.polyline.setMap(null);
+            }
+            removeMeasurementLabelFromRegistry(line.measurementLabel);
+        }
+
+        function updateUndoLastLineButton() {
+            const btn = document.getElementById('undoLastLineBtn');
+            if (btn) btn.disabled = drawnLines.length === 0;
+        }
+
+        function undoLastDrawnLine() {
+            if (drawnLines.length === 0) {
+                showToast('No completed lines to undo');
+                return;
+            }
+            const removed = drawnLines.pop();
+            removeDrawnLineGraphics(removed);
+
+            const multiIdx = drawnFeatures.findIndex(feature => feature.type === 'multiline');
+
+            if (drawnLines.length === 0) {
+                if (multiIdx === -1) {
+                    const loneIdx = drawnFeatures.indexOf(removed);
+                    if (loneIdx > -1) drawnFeatures.splice(loneIdx, 1);
+                }
+            } else if (drawnLines.length === 1) {
+                if (multiIdx > -1) {
+                    const multi = drawnFeatures[multiIdx];
+                    removeMeasurementLabelFromRegistry(multi.totalLabel);
+                    drawnFeatures.splice(multiIdx, 1);
+                    const remaining = drawnLines[0];
+                    remaining.index = drawnFeatures.length;
+                    drawnFeatures.push(remaining);
+                    const distance = google.maps.geometry.spherical.computeDistanceBetween(
+                        remaining.markers[0].getPosition(),
+                        remaining.markers[1].getPosition()
+                    );
+                    const midpoint = google.maps.geometry.spherical.interpolate(
+                        remaining.markers[0].getPosition(),
+                        remaining.markers[1].getPosition(),
+                        0.5
+                    );
+                    const labelText = createEnhancedLabelText(distance, remaining.drawingType);
+                    updateMeasurementLabel(remaining.measurementLabel, midpoint, labelText);
+                    setupMultiLineStringDragListeners();
+                }
+            } else if (multiIdx > -1) {
+                updateExistingMultiLineString(multiIdx);
+            }
+
+            createStreetViewLines();
+            updateGeoJSONDisplay();
+            updateUndoLastLineButton();
+            showToast('Last line removed');
+        }
 
         function clearDrawings() {
             // Remove all drawn features from map
@@ -3172,6 +3890,7 @@
             currentLine = null;
             currentLineCoords = [];
             updateGeoJSONDisplay();
+            updateUndoLastLineButton();
             showToast('All drawings cleared!');
         }
 
@@ -4464,7 +5183,7 @@
 
         function initializeResizableDivider() {
             const divider = document.getElementById('resize-divider');
-            const streetView = document.getElementById('street-view');
+            const streetViewPanel = document.getElementById('street-view-panel');
             const mapContainer = document.querySelector('.map-container');
 
             divider.addEventListener('mousedown', startResize);
@@ -4472,7 +5191,7 @@
             function startResize(e) {
                 isResizing = true;
                 startY = e.clientY;
-                startStreetViewHeight = streetView.offsetHeight;
+                startStreetViewHeight = streetViewPanel.offsetHeight;
                 
                 divider.classList.add('dragging');
                 document.body.style.cursor = 'row-resize';
@@ -4502,7 +5221,7 @@
                 const viewportHeight = window.innerHeight;
                 const streetViewVh = (constrainedHeight / viewportHeight) * 100;
                 
-                streetView.style.height = `${streetViewVh}vh`;
+                streetViewPanel.style.height = `${streetViewVh}vh`;
                 
                 // Trigger resize events for Google Maps
                 if (streetView && mainMap) {
@@ -4537,7 +5256,7 @@
 
             // Double-click to reset to default 55/45 split
             divider.addEventListener('dblclick', () => {
-                streetView.style.height = '55vh';
+                streetViewPanel.style.height = '55vh';
                 setTimeout(() => {
                     if (streetView && mainMap) {
                         google.maps.event.trigger(streetView, 'resize');
@@ -4550,8 +5269,8 @@
 
         // Function to reset layout to default
         function resetLayout() {
-            const streetView = document.getElementById('street-view');
-            streetView.style.height = '55vh';
+            const streetViewPanel = document.getElementById('street-view-panel');
+            streetViewPanel.style.height = '55vh';
             setTimeout(() => {
                 if (streetView && mainMap) {
                     google.maps.event.trigger(streetView, 'resize');
@@ -4604,6 +5323,14 @@
                     case 't':
                         e.preventDefault();
                         toggleMeasurementLabels();
+                        break;
+                    case 'z':
+                        if (e.shiftKey) break;
+                        if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+                            break;
+                        }
+                        e.preventDefault();
+                        undoLastDrawnLine();
                         break;
                     case 's':
                         e.preventDefault();
