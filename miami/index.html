@@ -1258,6 +1258,10 @@
                     🏷️ Labels
                 </button>
             </div>
+
+            <div style="margin-top: 10px; padding: 8px; background: rgba(0, 150, 136, 0.08); border-radius: 6px; font-size: 11px; color: #444;">
+                <strong>Exact length:</strong> click a drawn or imported line on the map, then enter a <strong>number of cars</strong> (parallel and plain lines = 6&nbsp;m per car, perpendicular = 3&nbsp;m per car). The first endpoint stays fixed; curves are straightened.
+            </div>
             
             <div id="geojson-panel" class="geojson-panel">
                 <h4>
@@ -1569,6 +1573,9 @@
         let currentLine = null;
         let currentLineCoords = [];
         let drawnLines = []; // Track all drawn lines for auto-combining
+
+        let lineLengthEditInfoWindow = null;
+        let lineLengthEditTargetFeature = null;
         
         // Measurement label variables
         let measurementLabels = [];
@@ -2503,13 +2510,22 @@
             }
         }
 
+        // Full-precision length can be e.g. 59.997 m while the label shows "60.00 m" (toFixed(2)).
+        // Car counts must use the same rounded value or the UI shows "60.00 m (9 Cars)".
+        function carCountFromDistanceMeters(distanceMeters, metersPerCar) {
+            const d = Number(distanceMeters);
+            if (!isFinite(d) || metersPerCar <= 0) return 0;
+            const dShown = parseFloat(d.toFixed(2));
+            return Math.floor(dShown / metersPerCar);
+        }
+
         // Helper function to format car counts
         function formatCarCount(distanceMeters, type) {
             if (type === 'parallel') {
-                const carCount = Math.floor(distanceMeters / 6);
+                const carCount = carCountFromDistanceMeters(distanceMeters, 6);
                 return carCount === 1 ? `${carCount} Car` : `${carCount} Cars`;
             } else if (type === 'perpendicular') {
-                const carCount = Math.floor(distanceMeters / 3);
+                const carCount = carCountFromDistanceMeters(distanceMeters, 3);
                 return carCount === 1 ? `${carCount} Car` : `${carCount} Cars`;
             }
             return formatDistance(distanceMeters);
@@ -2921,6 +2937,9 @@
         // Drawing functions
         function setDrawingMode(mode) {
             clearDrawingMode();
+            if (!mode) {
+                return;
+            }
             drawingMode = mode;
             document.querySelectorAll('.draw-button').forEach(btn => btn.classList.remove('active'));
             document.getElementById(mode + 'Btn').classList.add('active');
@@ -3019,138 +3038,261 @@
             showToast('Draggable point created! Drag to adjust position.');
         }
 
+        function metersPerCarForDrawingType(drawingType) {
+            if (drawingType === 'perpendicular') return 3;
+            return 6;
+        }
+
+        function carSpacingHintForDrawingType(drawingType) {
+            return drawingType === 'perpendicular' ? '3 m per car' : '6 m per car';
+        }
+
+        function buildLineLengthPopupContent(feature) {
+            const dt = feature.drawingType || 'line';
+            const carHint = carSpacingHintForDrawingType(dt);
+            return (
+                '<div style="font-family:system-ui,sans-serif;min-width:220px;max-width:280px;padding:2px;">' +
+                '<div style="font-weight:600;margin-bottom:6px;font-size:13px;">Set length (cars)</div>' +
+                '<div style="margin:0 0 8px;font-size:11px;color:#666;">Spacing: ' + carHint + '</div>' +
+                '<label for="line-length-popup-value" style="font-size:11px;color:#555;">Number of cars</label>' +
+                '<input type="number" id="line-length-popup-value" step="any" min="0.01" style="width:100%;box-sizing:border-box;padding:6px;margin:4px 0 10px;border:1px solid #ccc;border-radius:4px;" placeholder="e.g. 10">' +
+                '<button type="button" style="width:100%;padding:8px;background:#1976d2;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer;" onclick="applyLineLengthEditFromPopup()">Apply</button>' +
+                '</div>'
+            );
+        }
+
+        function openLineLengthEditPopup(feature, anchorLatLng) {
+            if (!mainMap || !feature || !feature.polyline) return;
+            lineLengthEditTargetFeature = feature;
+            if (!lineLengthEditInfoWindow) {
+                lineLengthEditInfoWindow = new google.maps.InfoWindow({ maxWidth: 320 });
+                lineLengthEditInfoWindow.addListener('closeclick', () => {
+                    lineLengthEditTargetFeature = null;
+                });
+            }
+            lineLengthEditInfoWindow.setContent(buildLineLengthPopupContent(feature));
+            lineLengthEditInfoWindow.setPosition(anchorLatLng);
+            lineLengthEditInfoWindow.open(mainMap);
+        }
+
+        function setupLineLengthClickEditor(feature) {
+            if (!feature || !feature.polyline) return;
+            feature.polyline.addListener('click', (e) => {
+                const latLng = e.latLng;
+                if (!latLng) return;
+                openLineLengthEditPopup(feature, latLng);
+            });
+        }
+
+        function applyLineLengthEditFromPopup() {
+            const feature = lineLengthEditTargetFeature;
+            if (!feature || !feature.markers || feature.markers.length !== 2) {
+                showToast('No line selected.');
+                return;
+            }
+            const inp = document.getElementById('line-length-popup-value');
+            if (!inp) return;
+            const raw = parseFloat(String(inp.value).trim(), 10);
+            if (!isFinite(raw) || raw <= 0) {
+                showToast('Enter a positive number of cars.');
+                return;
+            }
+            const mpc = metersPerCarForDrawingType(feature.drawingType || 'line');
+            const targetMeters = raw * mpc;
+            const removedCurve = applyExactGeodesicLengthToLineFeature(feature, targetMeters);
+            if (lineLengthEditInfoWindow) {
+                lineLengthEditInfoWindow.close();
+            }
+            lineLengthEditTargetFeature = null;
+            const baseMsg = `Line set to ${raw} car${raw === 1 ? '' : 's'} (${formatDistance(targetMeters)})`;
+            showToast(removedCurve ? `${baseMsg}. Curve control points removed.` : `${baseMsg}.`);
+        }
+
+        /**
+         * Returns a LatLng on the geodesic from anchor with initial heading such that
+         * computeDistanceBetween(anchor, result) ≈ targetMeters. Uses search because a single
+         * computeOffset(anchor, targetMeters, heading) can land slightly short in edge cases,
+         * which makes floor(car length) labels show one fewer car than intended.
+         */
+        function endpointLatLngAtGeodesicDistance(anchorLatLng, headingDegrees, targetMeters) {
+            const geom = google.maps.geometry.spherical;
+            if (!isFinite(targetMeters) || targetMeters <= 0) {
+                return anchorLatLng;
+            }
+            const distForOffsetMeters = (offsetMeters) => {
+                const p = geom.computeOffset(anchorLatLng, offsetMeters, headingDegrees);
+                return geom.computeDistanceBetween(anchorLatLng, p);
+            };
+
+            let lo = 0;
+            let hi = targetMeters;
+            let hiDist = distForOffsetMeters(hi);
+            let guard = 0;
+            while (hiDist < targetMeters && guard < 28) {
+                hi *= 2;
+                hiDist = distForOffsetMeters(hi);
+                guard++;
+            }
+
+            for (let i = 0; i < 45; i++) {
+                const mid = (lo + hi) / 2;
+                const dMid = distForOffsetMeters(mid);
+                if (Math.abs(dMid - targetMeters) < 0.005) {
+                    return geom.computeOffset(anchorLatLng, mid, headingDegrees);
+                }
+                if (dMid < targetMeters) {
+                    lo = mid;
+                } else {
+                    hi = mid;
+                }
+            }
+            return geom.computeOffset(anchorLatLng, (lo + hi) / 2, headingDegrees);
+        }
+
+        function applyExactGeodesicLengthToLineFeature(feature, targetMeters) {
+            const removedCurve = stripControlPointsFromLineFeature(feature);
+            if (removedCurve) {
+                updateLineGeometry(feature);
+            }
+            const anchor = feature.markers[0].getPosition();
+            const bearing = google.maps.geometry.spherical.computeHeading(anchor, feature.markers[1].getPosition());
+            const newEnd = endpointLatLngAtGeodesicDistance(anchor, bearing, targetMeters);
+            feature.markers[1].setPosition(newEnd);
+            updateLineGeometry(feature);
+            createStreetViewLines();
+            if (feature.isImported) {
+                updateImportedGeoJSONDisplay();
+            } else {
+                updateGeoJSONDisplay();
+            }
+            return removedCurve;
+        }
+
+        function stripControlPointsFromLineFeature(feature) {
+            if (!feature || !feature.controlMarkers || feature.controlMarkers.length === 0) return false;
+            feature.controlMarkers.forEach(m => m.setMap(null));
+            feature.controlMarkers = [];
+            feature.controlPoints = [];
+            if (feature.geojson) {
+                delete feature.geojson.controlPoints;
+            }
+            return true;
+        }
+
+        function lineEndpointMarkerIcon() {
+            return {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 6,
+                fillColor: "#2196F3",
+                fillOpacity: 0.9,
+                strokeColor: "#ffffff",
+                strokeWeight: 2
+            };
+        }
+
+        function finalizeLineWithMarkers(markerStart, markerEnd, drawingType, singleLineToastMessage) {
+            const p0 = markerStart.getPosition();
+            const p1 = markerEnd.getPosition();
+            const pathPair = [p0, p1];
+
+            const polyline = new google.maps.Polyline({
+                path: pathPair,
+                geodesic: true,
+                strokeColor: "#2196F3",
+                strokeOpacity: 1.0,
+                strokeWeight: 3,
+                map: mainMap,
+                icons: [
+                    {
+                        icon: {
+                            path: google.maps.SymbolPath.CIRCLE,
+                            scale: 4,
+                            fillColor: "#4CAF50",
+                            fillOpacity: 1,
+                            strokeColor: "#ffffff",
+                            strokeWeight: 2
+                        },
+                        offset: '0%'
+                    },
+                    {
+                        icon: {
+                            path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                            scale: 4,
+                            fillColor: "#f44336",
+                            fillOpacity: 1,
+                            strokeColor: "#ffffff",
+                            strokeWeight: 2
+                        },
+                        offset: '100%'
+                    }
+                ]
+            });
+
+            const geojson = {
+                coordinates: pathPair.map(coord => [coord.lng(), coord.lat()]),
+                originalEndpoints: pathPair.map(coord => [coord.lng(), coord.lat()]),
+                type: "LineString"
+            };
+
+            const distance = google.maps.geometry.spherical.computeDistanceBetween(p0, p1);
+            const midpoint = google.maps.geometry.spherical.interpolate(p0, p1, 0.5);
+            const labelText = createEnhancedLabelText(distance, drawingType);
+            const measurementLabel = createMeasurementLabel(midpoint, labelText, 'default');
+
+            const feature = {
+                type: 'line',
+                drawingType: drawingType,
+                markers: [markerStart, markerEnd],
+                polyline: polyline,
+                geojson: geojson,
+                measurementLabel: measurementLabel,
+                index: drawnFeatures.length
+            };
+
+            drawnLines.push(feature);
+            createStreetViewLines();
+            setupLineDragListeners(feature, 0);
+            setupLineDragListeners(feature, 1);
+            createEditableIndicator(markerStart, "DRAG");
+            createEditableIndicator(markerEnd, "DRAG");
+            polyline.addListener('dblclick', (event) => {
+                addControlPoint(feature, event.latLng);
+            });
+            setupLineDragHandler(feature);
+            setupLineLengthClickEditor(feature);
+
+            if (drawnLines.length >= 2) {
+                createOrUpdateMultiLineString();
+            } else {
+                drawnFeatures.push(feature);
+                updateGeoJSONDisplay();
+                showToast(singleLineToastMessage || 'Enhanced line created! Draw another line to auto-create MultiLineString.');
+            }
+
+            updateUndoLastLineButton();
+        }
+
         function addLinePoint(latLng, drawingType = 'line') {
             currentLineCoords.push(latLng);
-            
-            // Create marker for the point
+
             const marker = new google.maps.Marker({
                 position: latLng,
                 map: mainMap,
                 draggable: true,
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 6,
-                    fillColor: "#2196F3",
-                    fillOpacity: 0.9,
-                    strokeColor: "#ffffff",
-                    strokeWeight: 2
-                },
+                icon: lineEndpointMarkerIcon(),
                 title: "Draggable Line Endpoint"
             });
 
             if (currentLineCoords.length === 1) {
-                // First point
                 currentLine = {
                     markers: [marker],
                     polyline: null,
                     drawingType: drawingType
                 };
-                showToast('Line started - click to add second point');
+                showToast('Line started — click to add the second point.');
             } else if (currentLineCoords.length === 2) {
-                // Second point - complete the line
                 currentLine.markers.push(marker);
-                
-                const polyline = new google.maps.Polyline({
-                    path: currentLineCoords,
-                    geodesic: true,
-                    strokeColor: "#2196F3",
-                    strokeOpacity: 1.0,
-                    strokeWeight: 3,
-                    map: mainMap,
-                    icons: [
-                        {
-                            icon: {
-                                path: google.maps.SymbolPath.CIRCLE,
-                                scale: 4,
-                                fillColor: "#4CAF50",
-                                fillOpacity: 1,
-                                strokeColor: "#ffffff",
-                                strokeWeight: 2
-                            },
-                            offset: '0%'
-                        },
-                        {
-                            icon: {
-                                path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                                scale: 4,
-                                fillColor: "#f44336",
-                                fillOpacity: 1,
-                                strokeColor: "#ffffff",
-                                strokeWeight: 2
-                            },
-                            offset: '100%'
-                        }
-                    ]
-                });
-                
-                currentLine.polyline = polyline;
-
-                const geojson = {
-                    coordinates: currentLineCoords.map(coord => [coord.lng(), coord.lat()]),
-                    originalEndpoints: currentLineCoords.map(coord => [coord.lng(), coord.lat()]),
-                    type: "LineString"
-                };
-
-                // Calculate initial distance and create measurement label
-                const distance = google.maps.geometry.spherical.computeDistanceBetween(
-                    currentLineCoords[0], currentLineCoords[1]
-                );
-                
-                // Position label at midpoint of line
-                const midpoint = google.maps.geometry.spherical.interpolate(
-                    currentLineCoords[0], currentLineCoords[1], 0.5
-                );
-                
-                // Create enhanced label text with both distance and car measurements
-                const labelText = createEnhancedLabelText(distance, drawingType);
-                
-                const measurementLabel = createMeasurementLabel(midpoint, labelText, 'default');
-
-                const feature = {
-                    type: 'line',
-                    drawingType: drawingType,
-                    markers: currentLine.markers,
-                    polyline: polyline,
-                    geojson: geojson,
-                    measurementLabel: measurementLabel,
-                    index: drawnFeatures.length
-                };
-
-                // Add to drawn lines collection for auto-combining
-                drawnLines.push(feature);
-                
-                // Create Street View version of this line
-                createStreetViewLines();
-
-                // Add drag listeners to both endpoints
-                setupLineDragListeners(feature, 0); // First endpoint
-                setupLineDragListeners(feature, 1); // Second endpoint
-                
-                // Add editable indicators to both endpoints
-                createEditableIndicator(currentLine.markers[0], "DRAG");
-                createEditableIndicator(currentLine.markers[1], "DRAG");
-                
-                // Add double-click listener to polyline for adding control points
-                polyline.addListener('dblclick', (event) => {
-                    addControlPoint(feature, event.latLng);
-                });
-
-                // Add whole-line dragging functionality
-                setupLineDragHandler(feature);
-
-                // Check if we should create or update a MultiLineString
-                if (drawnLines.length >= 2) {
-                    createOrUpdateMultiLineString();
-                } else {
-                    // For single line, add to drawnFeatures normally
-                    drawnFeatures.push(feature);
-                    updateGeoJSONDisplay();
-                    showToast('Enhanced line created! Draw another line to auto-create MultiLineString.');
-                }
-
-                updateUndoLastLineButton();
-
-                // Reset for next line
+                finalizeLineWithMarkers(currentLine.markers[0], marker, drawingType, null);
                 currentLine = null;
                 currentLineCoords = [];
             }
@@ -4175,6 +4317,7 @@
             polyline.addListener('dblclick', (event) => {
                 addControlPoint(feature, event.latLng);
             });
+            setupLineLengthClickEditor(feature);
             
             // Handle more than 2 coordinates by creating control points
             if (coordinates.length > 2) {
