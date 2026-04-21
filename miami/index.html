@@ -2263,8 +2263,11 @@
         }
 
         // Helper function to create enhanced label text with both distance and car measurements
-        function createEnhancedLabelText(distance, drawingType, lineNumber = null) {
+        function createEnhancedLabelText(distance, drawingType, lineNumber = null, omitCarCounts = false) {
             const distanceText = formatDistance(distance);
+            if (omitCarCounts) {
+                return distanceText;
+            }
             
             // Calculate both parallel and perpendicular car counts
             const parallelCars = formatCarCount(distance, 'parallel');
@@ -3474,8 +3477,12 @@
                 labelPosition = google.maps.geometry.spherical.interpolate(path[0], path[1], 0.5);
             }
             
-            // Create enhanced label text with both distance and car measurements
-            const labelText = createEnhancedLabelText(distance, feature.drawingType);
+            const labelText = createEnhancedLabelText(
+                distance,
+                feature.drawingType,
+                null,
+                feature.isImported === true
+            );
             updateMeasurementLabel(feature.measurementLabel, labelPosition, labelText);
             
             // Update MultiLineString if this line is part of one
@@ -4291,7 +4298,7 @@
             // Calculate distance and create label
             const distance = google.maps.geometry.spherical.computeDistanceBetween(startCoord, endCoord);
             const midpoint = google.maps.geometry.spherical.interpolate(startCoord, endCoord, 0.5);
-            const labelText = createEnhancedLabelText(distance, 'line', lineIndex + 1);
+            const labelText = createEnhancedLabelText(distance, 'line', lineIndex + 1, true);
             const measurementLabel = createMeasurementLabel(midpoint, labelText, 'default');
             
             // Create feature object
