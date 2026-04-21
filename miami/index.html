@@ -3609,7 +3609,11 @@
             
             // Update the line to show the curve and regenerate coordinates
             updateLineGeometry(feature);
-            updateGeoJSONDisplay();
+            if (feature.isImported) {
+                updateImportedGeoJSONDisplay();
+            } else {
+                updateGeoJSONDisplay();
+            }
             showToast('Control point added! Curve coordinates updated in GeoJSON.');
         }
 
@@ -4105,6 +4109,8 @@
         // Variables to track imported lines
         let importedLines = [];
         let importedFeatureCounter = 0;
+        /** Preserves pasted GeoJSON geometry type ('LineString' | 'MultiLineString') for textarea / copy output */
+        let importedGeoJSONSourceType = null;
 
         // Function to validate GeoJSON input
         function validateGeoJSON() {
@@ -4182,6 +4188,7 @@
             
             const input = document.getElementById('geojson-input').value.trim();
             const geojson = JSON.parse(input);
+            importedGeoJSONSourceType = geojson.type;
             
             let linesToCreate = [];
             
@@ -4191,8 +4198,8 @@
                 linesToCreate = geojson.coordinates;
             }
             
-            // Clear existing imported lines
-            clearImportedLines();
+            // Clear existing imported lines (without wiping source type we just set)
+            clearImportedLines({ preserveSourceType: true, silent: true });
             
             // Create lines from GeoJSON
             linesToCreate.forEach((lineCoords, index) => {
@@ -4344,23 +4351,33 @@
             });
         }
 
+        function getImportedGeoJSONForExport() {
+            if (importedLines.length === 0) return null;
+            if (importedGeoJSONSourceType === 'LineString' && importedLines.length === 1) {
+                return {
+                    coordinates: importedLines[0].geojson.coordinates,
+                    type: 'LineString'
+                };
+            }
+            return {
+                coordinates: importedLines.map(line => line.geojson.coordinates),
+                type: 'MultiLineString'
+            };
+        }
+
         // Function to update the imported GeoJSON display
         function updateImportedGeoJSONDisplay() {
-            if (importedLines.length === 0) return;
+            const exported = getImportedGeoJSONForExport();
+            if (!exported) return;
             
-            // Create MultiLineString from all imported lines
-            const multiLineGeoJSON = {
-                coordinates: importedLines.map(line => line.geojson.coordinates),
-                type: "MultiLineString"
-            };
-            
-            // Update the input textarea with minified JSON (no formatting)
             const textarea = document.getElementById('geojson-input');
-            textarea.value = JSON.stringify(multiLineGeoJSON);
+            textarea.value = JSON.stringify(exported);
         }
 
         // Function to clear imported lines
-        function clearImportedLines() {
+        function clearImportedLines(options) {
+            const preserveSourceType = options && options.preserveSourceType;
+            const silent = options && options.silent;
             importedLines.forEach(line => {
                 // Remove from map
                 line.markers.forEach(marker => marker.setMap(null));
@@ -4377,13 +4394,17 @@
             
             importedLines = [];
             importedFeatureCounter = 0;
+            if (!preserveSourceType) {
+                importedGeoJSONSourceType = null;
+            }
             
             // Clear input
             document.getElementById('geojson-input').value = '';
             
-            // No need to update Generated GeoJSON since imported lines are separate
-            showToast('Imported lines cleared!');
-            showStatus('All imported lines cleared', 'success');
+            if (!silent) {
+                showToast('Imported lines cleared!');
+                showStatus('All imported lines cleared', 'success');
+            }
         }
 
         // Function to center map to show all imported lines
@@ -4439,19 +4460,13 @@
 
         // Function to copy the current edited GeoJSON in minified format
         function copyEditedGeoJSON() {
-            if (importedLines.length === 0) {
+            const exported = getImportedGeoJSONForExport();
+            if (!exported) {
                 showToast('No imported lines to copy', 'error');
                 return;
             }
             
-            // Create MultiLineString from current imported lines state
-            const multiLineGeoJSON = {
-                coordinates: importedLines.map(line => line.geojson.coordinates),
-                type: "MultiLineString"
-            };
-            
-            // Copy minified JSON to clipboard
-            const minifiedGeoJSON = JSON.stringify(multiLineGeoJSON);
+            const minifiedGeoJSON = JSON.stringify(exported);
             navigator.clipboard.writeText(minifiedGeoJSON).then(() => {
                 showToast('Minified edited GeoJSON copied to clipboard!');
                 showStatus('✓ Minified GeoJSON copied successfully', 'success');
