@@ -1224,7 +1224,7 @@
             <h3><span>✏️</span> Drawing Tools</h3>
             <div style="background: rgba(33, 150, 243, 0.1); padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 11px; color: #333;">
                 <strong>✨ Enhanced Line Tool:</strong> All elements are draggable with real-time measurements! 
-                <br><strong>🎯 Bendable Lines:</strong> Double-click any line to add control points (orange dots) that let you bend the line into curves. Right-click control points to remove them.
+                <br><strong>🎯 Bendable Lines:</strong> Right-click any line to add control points (orange dots) that let you bend the line into curves. Right-click control points to remove them. (Shortcut: press <strong>C</strong> while hovering a line.)
                 <br><strong>🔄 Whole-Line Dragging:</strong> Drag anywhere on the line (not just endpoints) to move the entire line to a new position while maintaining its shape and curve.
                 <br><strong>Auto-MultiLine:</strong> Draw individual lines normally - after 2+ lines, they automatically combine into a MultiLineString in the GeoJSON output with total measurements.
                 <br><strong>↩ Undo line:</strong> Removes the most recently finished line (sidebar button or Ctrl+Z when not typing in a text field).
@@ -1573,6 +1573,10 @@
         let currentLine = null;
         let currentLineCoords = [];
         let drawnLines = []; // Track all drawn lines for auto-combining
+
+        // Curve control-point interaction state (right-click / keyboard shortcut)
+        let activeLineFeatureForControlPoint = null;
+        let activeLineLatLngForControlPoint = null;
 
         let lineLengthEditInfoWindow = null;
         let lineLengthEditTargetFeature = null;
@@ -3083,8 +3087,50 @@
             feature.polyline.addListener('click', (e) => {
                 const latLng = e.latLng;
                 if (!latLng) return;
+                activeLineFeatureForControlPoint = feature;
+                activeLineLatLngForControlPoint = latLng;
                 openLineLengthEditPopup(feature, latLng);
             });
+        }
+
+        function installCurveControlPointInteractions(feature) {
+            if (!feature || !feature.polyline) return;
+            const polyline = feature.polyline;
+
+            // Right-click on the line to add a control point at that location.
+            polyline.addListener('rightclick', (e) => {
+                const latLng = e && e.latLng;
+                if (!latLng) return;
+                activeLineFeatureForControlPoint = feature;
+                activeLineLatLngForControlPoint = latLng;
+                addControlPoint(feature, latLng);
+            });
+
+            // Track an "active" line for keyboard shortcut placement.
+            polyline.addListener('mouseover', (e) => {
+                activeLineFeatureForControlPoint = feature;
+                if (e && e.latLng) activeLineLatLngForControlPoint = e.latLng;
+            });
+            polyline.addListener('mousemove', (e) => {
+                activeLineFeatureForControlPoint = feature;
+                if (e && e.latLng) activeLineLatLngForControlPoint = e.latLng;
+            });
+        }
+
+        function addControlPointFromKeyboardShortcut() {
+            const feature = activeLineFeatureForControlPoint;
+            if (!feature || !feature.polyline) {
+                showToast('Hover a line, then press C to add a control point.');
+                return;
+            }
+            const pos =
+                activeLineLatLngForControlPoint ||
+                google.maps.geometry.spherical.interpolate(
+                    feature.markers[0].getPosition(),
+                    feature.markers[1].getPosition(),
+                    0.5
+                );
+            addControlPoint(feature, pos);
         }
 
         function applyLineLengthEditFromPopup() {
@@ -3258,11 +3304,9 @@
             setupLineDragListeners(feature, 1);
             createEditableIndicator(markerStart, "DRAG");
             createEditableIndicator(markerEnd, "DRAG");
-            polyline.addListener('dblclick', (event) => {
-                addControlPoint(feature, event.latLng);
-            });
             setupLineDragHandler(feature);
             setupLineLengthClickEditor(feature);
+            installCurveControlPointInteractions(feature);
 
             if (drawnLines.length >= 2) {
                 createOrUpdateMultiLineString();
@@ -4327,11 +4371,8 @@
             setupImportedLineDragListeners(feature);
             setupLineDragHandler(feature);
             
-            // Add double-click listener for control points
-            polyline.addListener('dblclick', (event) => {
-                addControlPoint(feature, event.latLng);
-            });
             setupLineLengthClickEditor(feature);
+            installCurveControlPointInteractions(feature);
             
             // Handle more than 2 coordinates by creating control points
             if (coordinates.length > 2) {
@@ -5520,6 +5561,16 @@
                         }
                         break;
                 }
+            }
+
+            // C (no modifiers) adds a curve control point to the active line.
+            if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && (e.key === 'c' || e.key === 'C')) {
+                if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+                    return;
+                }
+                e.preventDefault();
+                addControlPointFromKeyboardShortcut();
+                return;
             }
             
             // ESC to cancel current drawing mode
