@@ -749,14 +749,52 @@
         </div>
     </div>
 
+    <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
     <script>
         const GOOGLE_MAPS_API_KEY = 'AIzaSyCKo-4KyqDSNOfY5uP--H9IIb_G56WavvQ';
 
+        // Dots (start/end markers) are only shown when the map's scale bar
+        // reads this many meters or less. Google's scale bar is approximately
+        // (meters-per-pixel × 100px), so 15m ≈ 0.15 m/px ≈ zoom 20 at Miami
+        // latitude. Dots stay hidden any time the map is panned/zoomed out
+        // beyond this scale.
+        const DOTS_MAX_SCALE_METERS = 15;
+        const SCALE_BAR_PX = 100;
+
+        // Shared marker icon symbols so we don't re-allocate per marker
+        const START_ICON = {
+            path: 0, // google.maps.SymbolPath.CIRCLE (resolved lazily below)
+            scale: 5,
+            fillColor: '#3b82f6',
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 2
+        };
+        const END_ICON = {
+            path: 0,
+            scale: 5,
+            fillColor: '#ef4444',
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 2
+        };
+        const POINT_ICON = {
+            path: 0,
+            scale: 6,
+            fillColor: '#dc2626',
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 2
+        };
+
         let map;
-        let loadedMapOverlays = [];
+        let loadedMapOverlays = []; // polylines + non-dot overlays
+        let startEndMarkers = [];   // red/blue dots (start & end of line segments)
+        let startEndClusterer = null;
         let allFeatures = []; // Store all loaded features for filtering
         let currentInfoWindow = null;
         let routeClickedFlag = false; // Flag to prevent global map click when route is clicked
+        let dotsCurrentlyVisible = false;
         let currentFilters = {
             mapper: '',
             zone: '',
@@ -764,6 +802,11 @@
         };
 
         function initGoogleMap() {
+            // Resolve circle symbol path now that google.maps is available
+            START_ICON.path = google.maps.SymbolPath.CIRCLE;
+            END_ICON.path = google.maps.SymbolPath.CIRCLE;
+            POINT_ICON.path = google.maps.SymbolPath.CIRCLE;
+
             map = new google.maps.Map(document.getElementById('map'), {
                 center: { lat: 25.7617, lng: -80.1918 },
                 zoom: 11,
@@ -786,11 +829,48 @@
                 }
             });
 
+            // Toggle dot visibility whenever the zoom changes (debounced to idle)
+            map.addListener('idle', updateDotVisibility);
+
             showStatus('Map initialized successfully', 'success');
 
             google.maps.event.addListenerOnce(map, 'idle', () => {
                 setTimeout(() => loadGeoJSONData(), 500);
             });
+        }
+
+        // Approximate ground resolution (meters per screen pixel) at the map's
+        // current center/zoom. Uses the Web Mercator formula.
+        function getMetersPerPixel() {
+            if (!map) return Infinity;
+            const center = map.getCenter();
+            if (!center) return Infinity;
+            const lat = center.lat();
+            const zoom = map.getZoom();
+            return 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom);
+        }
+
+        function shouldShowDots() {
+            if (!map) return false;
+            const zoom = map.getZoom();
+            if (typeof zoom !== 'number') return false;
+            // Approximate the map's scale bar reading and gate on it.
+            const scaleMeters = getMetersPerPixel() * SCALE_BAR_PX;
+            return scaleMeters <= DOTS_MAX_SCALE_METERS;
+        }
+
+        // Show/hide the red+blue start/end dots based on current zoom.
+        // When shown, the MarkerClusterer collapses overlapping ones for speed.
+        function updateDotVisibility() {
+            if (!startEndClusterer) return;
+            const show = shouldShowDots();
+            if (show === dotsCurrentlyVisible) return; // no change
+            if (show) {
+                startEndClusterer.addMarkers(startEndMarkers, false);
+            } else {
+                startEndClusterer.clearMarkers();
+            }
+            dotsCurrentlyVisible = show;
         }
 
         // Calculate distance between coordinates using Haversine formula
@@ -1085,233 +1165,155 @@
             return { lat: coord[1], lng: coord[0] };
         }
 
+        // Create one of the small start/end dot markers (not attached to map;
+        // visibility is controlled by the MarkerClusterer + zoom logic).
+        function createDotMarker(coord, icon) {
+            return new google.maps.Marker({
+                position: lngLatFromGeoCoord(coord),
+                icon,
+                zIndex: 3,
+                optimized: true
+            });
+        }
+
+        function buildPointFeaturePopupHtml(props) {
+            return `
+                <div class="popup-content">
+                    <div class="popup-header">
+                        <h3 class="popup-title">
+                            <div class="popup-icon" style="background: #dc2626; border-radius: 50%;"></div>
+                            ${props['Mapper Name'] || 'Mapper'}
+                        </h3>
+                    </div>
+                    <div class="popup-body">
+                        <div class="popup-info-grid">
+                            ${props['ID'] ? `
+                            <div class="popup-info-item" style="border-left-color: #dc2626;">
+                                <div class="popup-info-label">ID</div>
+                                <div class="popup-info-value">${props['ID']}</div>
+                            </div>` : ''}
+                            ${props['ZONE NUMBER'] ? `
+                            <div class="popup-info-item" style="border-left-color: #dc2626;">
+                                <div class="popup-info-label">Zone Number</div>
+                                <div class="popup-info-value">${props['ZONE NUMBER']}</div>
+                            </div>` : ''}
+                            ${props['Street View Spaces'] ? `
+                            <div class="popup-info-item" style="border-left-color: #dc2626;">
+                                <div class="popup-info-label">Street View Spaces</div>
+                                <div class="popup-info-value">${props['Street View Spaces']}</div>
+                            </div>` : ''}
+                        </div>
+                        <div class="popup-stats-grid">
+                            <div class="popup-distance-card" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);">
+                                <div class="popup-distance-label">Type</div>
+                                <div class="popup-distance-value">📍 Point Location</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function addLineFeatureToMap(feature, bounds) {
+            const geom = feature.geometry;
+            const props = feature.properties;
+            const lineArrays = geom.type === 'LineString' ? [geom.coordinates] : geom.coordinates;
+
+            const onRouteClick = (e) => {
+                routeClickedFlag = true;
+                openRouteInfoWindow(e.latLng, props, geom.type);
+            };
+            const setPointer = () => map.setOptions({ draggableCursor: 'pointer' });
+            const clearPointer = () => map.setOptions({ draggableCursor: '' });
+
+            lineArrays.forEach((coords) => {
+                const path = coords.map(lngLatFromGeoCoord);
+                path.forEach(p => bounds.extend(p));
+
+                const outline = new google.maps.Polyline({
+                    path,
+                    map,
+                    strokeColor: '#222222',
+                    strokeOpacity: 0.35,
+                    strokeWeight: 5,
+                    clickable: true,
+                    zIndex: 1
+                });
+                const line = new google.maps.Polyline({
+                    path,
+                    map,
+                    strokeColor: '#000000',
+                    strokeOpacity: 0.9,
+                    strokeWeight: 3,
+                    clickable: true,
+                    zIndex: 2
+                });
+                loadedMapOverlays.push(outline, line);
+
+                outline.addListener('click', onRouteClick);
+                line.addListener('click', onRouteClick);
+                outline.addListener('mouseover', setPointer);
+                outline.addListener('mouseout', clearPointer);
+                line.addListener('mouseover', setPointer);
+                line.addListener('mouseout', clearPointer);
+
+                // Start + end dots for every line segment, added to the cluster pool
+                startEndMarkers.push(createDotMarker(coords[0], START_ICON));
+                startEndMarkers.push(createDotMarker(coords[coords.length - 1], END_ICON));
+            });
+        }
+
+        function addPointFeatureToMap(feature, bounds) {
+            const props = feature.properties;
+            const pos = lngLatFromGeoCoord(feature.geometry.coordinates);
+            bounds.extend(pos);
+
+            const marker = new google.maps.Marker({
+                position: pos,
+                map,
+                icon: POINT_ICON,
+                zIndex: 4
+            });
+
+            marker.addListener('click', () => {
+                routeClickedFlag = true;
+                if (currentInfoWindow) currentInfoWindow.close();
+                currentInfoWindow = new google.maps.InfoWindow({
+                    maxWidth: 220,
+                    content: buildPointFeaturePopupHtml(props)
+                });
+                currentInfoWindow.open(map, marker);
+                google.maps.event.addListenerOnce(currentInfoWindow, 'closeclick', () => {
+                    currentInfoWindow = null;
+                });
+            });
+            loadedMapOverlays.push(marker);
+        }
+
         // Add GeoJSON features to Google Maps
         function addFeaturesToMap(features) {
-            let featureCount = 0;
             const bounds = new google.maps.LatLngBounds();
-
-            const lineFeatures = [];
-            const pointFeatures = [];
-            const startPointFeatures = [];
-            const endPointFeatures = [];
+            let featureCount = 0;
 
             features.forEach((feature) => {
                 if (!feature.geometry || !feature.geometry.coordinates) return;
-
-                const geometry = feature.geometry;
-
-                if (geometry.type === 'LineString' || geometry.type === 'MultiLineString') {
-                    lineFeatures.push(feature);
-
-                    if (geometry.type === 'LineString') {
-                        const startCoord = geometry.coordinates[0];
-                        const endCoord = geometry.coordinates[geometry.coordinates.length - 1];
-
-                        geometry.coordinates.forEach(coord => {
-                            bounds.extend(lngLatFromGeoCoord(coord));
-                        });
-
-                        startPointFeatures.push({
-                            type: 'Feature',
-                            properties: { ...feature.properties, pointType: 'start' },
-                            geometry: { type: 'Point', coordinates: startCoord }
-                        });
-
-                        endPointFeatures.push({
-                            type: 'Feature',
-                            properties: { ...feature.properties, pointType: 'end' },
-                            geometry: { type: 'Point', coordinates: endCoord }
-                        });
-                    } else if (geometry.type === 'MultiLineString') {
-                        geometry.coordinates.forEach((lineString, segmentIndex) => {
-                            lineString.forEach(coord => {
-                                bounds.extend(lngLatFromGeoCoord(coord));
-                            });
-
-                            const segmentStart = lineString[0];
-                            const segmentEnd = lineString[lineString.length - 1];
-
-                            startPointFeatures.push({
-                                type: 'Feature',
-                                properties: {
-                                    ...feature.properties,
-                                    pointType: 'segment-start',
-                                    segmentIndex: segmentIndex + 1,
-                                    totalSegments: geometry.coordinates.length
-                                },
-                                geometry: { type: 'Point', coordinates: segmentStart }
-                            });
-
-                            endPointFeatures.push({
-                                type: 'Feature',
-                                properties: {
-                                    ...feature.properties,
-                                    pointType: 'segment-end',
-                                    segmentIndex: segmentIndex + 1,
-                                    totalSegments: geometry.coordinates.length
-                                },
-                                geometry: { type: 'Point', coordinates: segmentEnd }
-                            });
-                        });
-                    }
-                } else if (geometry.type === 'Point') {
-                    pointFeatures.push(feature);
-                    bounds.extend(lngLatFromGeoCoord(geometry.coordinates));
+                const type = feature.geometry.type;
+                if (type === 'LineString' || type === 'MultiLineString') {
+                    addLineFeatureToMap(feature, bounds);
+                } else if (type === 'Point') {
+                    addPointFeatureToMap(feature, bounds);
+                } else {
+                    return;
                 }
                 featureCount++;
             });
 
-            if (lineFeatures.length > 0) {
-                lineFeatures.forEach((feature) => {
-                    const geom = feature.geometry;
-                    const lineArrays = geom.type === 'LineString' ? [geom.coordinates] : geom.coordinates;
-
-                    lineArrays.forEach((coords) => {
-                        const path = coords.map(lngLatFromGeoCoord);
-
-                        const outline = new google.maps.Polyline({
-                            path,
-                            map,
-                            strokeColor: '#222222',
-                            strokeOpacity: 0.35,
-                            strokeWeight: 5,
-                            clickable: true,
-                            zIndex: 1
-                        });
-                        const line = new google.maps.Polyline({
-                            path,
-                            map,
-                            strokeColor: '#000000',
-                            strokeOpacity: 0.9,
-                            strokeWeight: 3,
-                            clickable: true,
-                            zIndex: 2
-                        });
-
-                        loadedMapOverlays.push(outline, line);
-
-                        const props = feature.properties;
-                        const geometryType = feature.geometry.type;
-                        const onRouteClick = (e) => {
-                            routeClickedFlag = true;
-                            openRouteInfoWindow(e.latLng, props, geometryType);
-                        };
-                        outline.addListener('click', onRouteClick);
-                        line.addListener('click', onRouteClick);
-
-                        const setPointer = () => map.setOptions({ draggableCursor: 'pointer' });
-                        const clearPointer = () => map.setOptions({ draggableCursor: '' });
-                        outline.addListener('mouseover', setPointer);
-                        outline.addListener('mouseout', clearPointer);
-                        line.addListener('mouseover', setPointer);
-                        line.addListener('mouseout', clearPointer);
-                    });
-                });
-
-                startPointFeatures.forEach((fp) => {
-                    const m = new google.maps.Marker({
-                        position: lngLatFromGeoCoord(fp.geometry.coordinates),
-                        map,
-                        icon: {
-                            path: google.maps.SymbolPath.CIRCLE,
-                            scale: 5,
-                            fillColor: '#3b82f6',
-                            fillOpacity: 1,
-                            strokeColor: '#ffffff',
-                            strokeWeight: 2
-                        },
-                        zIndex: 3
-                    });
-                    loadedMapOverlays.push(m);
-                });
-
-                endPointFeatures.forEach((fp) => {
-                    const m = new google.maps.Marker({
-                        position: lngLatFromGeoCoord(fp.geometry.coordinates),
-                        map,
-                        icon: {
-                            path: google.maps.SymbolPath.CIRCLE,
-                            scale: 5,
-                            fillColor: '#ef4444',
-                            fillOpacity: 1,
-                            strokeColor: '#ffffff',
-                            strokeWeight: 2
-                        },
-                        zIndex: 3
-                    });
-                    loadedMapOverlays.push(m);
-                });
-            }
-
-            pointFeatures.forEach((feature) => {
-                const pos = lngLatFromGeoCoord(feature.geometry.coordinates);
-                const html = `
-                    <div class="popup-content">
-                        <div class="popup-header">
-                            <h3 class="popup-title">
-                                <div class="popup-icon" style="background: #dc2626; border-radius: 50%;"></div>
-                                ${feature.properties['Mapper Name'] || 'Mapper'}
-                            </h3>
-                        </div>
-                        <div class="popup-body">
-                            <div class="popup-info-grid">
-                                ${feature.properties['ID'] ? `
-                                <div class="popup-info-item" style="border-left-color: #dc2626;">
-                                    <div class="popup-info-label">ID</div>
-                                    <div class="popup-info-value">${feature.properties['ID']}</div>
-                                </div>` : ''}
-                                ${feature.properties['ZONE NUMBER'] ? `
-                                <div class="popup-info-item" style="border-left-color: #dc2626;">
-                                    <div class="popup-info-label">Zone Number</div>
-                                    <div class="popup-info-value">${feature.properties['ZONE NUMBER']}</div>
-                                </div>` : ''}
-                                ${feature.properties['Street View Spaces'] ? `
-                                <div class="popup-info-item" style="border-left-color: #dc2626;">
-                                    <div class="popup-info-label">Street View Spaces</div>
-                                    <div class="popup-info-value">${feature.properties['Street View Spaces']}</div>
-                                </div>` : ''}
-                            </div>
-                            <div class="popup-stats-grid">
-                                <div class="popup-distance-card" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);">
-                                    <div class="popup-distance-label">Type</div>
-                                    <div class="popup-distance-value">📍 Point Location</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-
-                const marker = new google.maps.Marker({
-                    position: pos,
-                    map,
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: 6,
-                        fillColor: '#dc2626',
-                        fillOpacity: 1,
-                        strokeColor: '#ffffff',
-                        strokeWeight: 2
-                    },
-                    zIndex: 4
-                });
-
-                marker.addListener('click', () => {
-                    routeClickedFlag = true;
-                    if (currentInfoWindow) {
-                        currentInfoWindow.close();
-                    }
-                    currentInfoWindow = new google.maps.InfoWindow({
-                        maxWidth: 220,
-                        content: html
-                    });
-                    currentInfoWindow.open(map, marker);
-                    google.maps.event.addListenerOnce(currentInfoWindow, 'closeclick', () => {
-                        currentInfoWindow = null;
-                    });
-                });
-
-                loadedMapOverlays.push(marker);
-            });
+            // (Re)build the start/end-dot clusterer and set visibility for the
+            // current zoom level. MarkerClusterer groups overlapping dots so the
+            // browser renders far fewer DOM nodes when zoomed in.
+            ensureClusterer();
+            dotsCurrentlyVisible = false; // force re-sync
+            updateDotVisibility();
 
             if (!bounds.isEmpty()) {
                 map.fitBounds(bounds, { top: 60, bottom: 60, left: 60, right: 60 });
@@ -1319,10 +1321,26 @@
                     if (map.getZoom() > 16) {
                         map.setZoom(16);
                     }
+                    updateDotVisibility();
                 });
             }
 
             return featureCount;
+        }
+
+        function ensureClusterer() {
+            if (startEndClusterer) {
+                startEndClusterer.clearMarkers();
+                return;
+            }
+            if (typeof markerClusterer === 'undefined' || !markerClusterer.MarkerClusterer) {
+                console.warn('MarkerClusterer library not available; dots will render without clustering.');
+                return;
+            }
+            startEndClusterer = new markerClusterer.MarkerClusterer({
+                map,
+                markers: []
+            });
         }
 
         // Load GeoJSON data from Google Sheets
@@ -1445,6 +1463,14 @@
                 }
             });
             loadedMapOverlays = [];
+
+            if (startEndClusterer) {
+                startEndClusterer.clearMarkers();
+            }
+            startEndMarkers.forEach(m => m.setMap(null));
+            startEndMarkers = [];
+            dotsCurrentlyVisible = false;
+
             if (currentInfoWindow) {
                 currentInfoWindow.close();
                 currentInfoWindow = null;
