@@ -599,6 +599,70 @@
             }
         }
 
+        .overlap-qa-list {
+            max-height: 260px;
+            overflow-y: auto;
+            margin-top: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        .overlap-qa-row {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+            font-size: 12px;
+            color: #1e293b;
+            line-height: 1.45;
+            transition: background 0.15s ease;
+        }
+
+        .overlap-qa-row:last-child {
+            border-bottom: none;
+        }
+
+        .overlap-qa-row:hover {
+            background: #f0f9ff;
+        }
+
+        .overlap-qa-row-meta {
+            color: #64748b;
+            font-size: 11px;
+            margin-top: 4px;
+        }
+
+        .overlap-qa-badge {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: #fef3c7;
+            color: #92400e;
+            margin-right: 6px;
+        }
+
+        .overlap-qa-empty {
+            padding: 12px;
+            font-size: 12px;
+            color: #64748b;
+            text-align: center;
+        }
+
+        .overlap-qa-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .overlap-qa-toolbar input[type="number"] {
+            width: 72px;
+            padding: 8px 10px;
+        }
+
         @media (max-width: 480px) {
             .controls {
                 padding: 12px;
@@ -734,6 +798,42 @@
                                 </select>
                             </div>
                         </div>
+
+                        <!-- Overlapping lines QA -->
+                        <div class="control-section">
+                            <h3>📐 Overlapping lines (QA)</h3>
+                            <p style="font-size: 12px; color: #64748b; margin: 0 0 10px 0;">
+                                Finds pairs of routes whose geometry comes within the threshold (crossing, stacked, or duplicate paths).
+                            </p>
+                            <div class="overlap-qa-toolbar">
+                                <label style="font-size: 12px; color: #374151; font-weight: 600;">Within (m)</label>
+                                <input type="number" id="overlapThresholdM" min="0.5" max="500" step="0.5" value="4" title="Max gap between segments to count as overlap">
+                                <button type="button" class="btn" id="overlapScanBtn" onclick="runOverlapScan()">Scan</button>
+                            </div>
+                            <div class="input-group" style="margin-top: 12px;">
+                                <label for="overlapListFilter">Filter list</label>
+                                <input type="text" id="overlapListFilter" placeholder="ID, mapper, or zone…" oninput="renderOverlapList()">
+                            </div>
+                            <div class="input-group">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; text-transform: none; font-weight: 600; color: #374151; font-size: 13px;">
+                                    <input type="checkbox" id="overlapDiffMapperOnly" onchange="renderOverlapList()">
+                                    Different mappers only
+                                </label>
+                            </div>
+                            <div class="input-group">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; text-transform: none; font-weight: 600; color: #374151; font-size: 13px;">
+                                    <input type="checkbox" id="overlapDiffZoneOnly" onchange="renderOverlapList()">
+                                    Different zones only
+                                </label>
+                            </div>
+                            <div id="overlapSummary" style="font-size: 12px; color: #475569; margin-top: 8px;"></div>
+                            <button type="button" class="btn btn-secondary" id="overlapExitFocusBtn" onclick="exitOverlapPairFocus()" style="display: none; width: 100%; margin-top: 10px; justify-content: center;">
+                                Show all routes again
+                            </button>
+                            <div id="overlapList" class="overlap-qa-list" role="list">
+                                <div class="overlap-qa-empty">Run Scan after loading data.</div>
+                            </div>
+                        </div>
                     </div>
                     
                     <div id="status"></div>
@@ -799,6 +899,32 @@
             mapper: '',
             zone: '',
             searchObjectId: ''
+        };
+
+        /** Pairs of line features closer than the scan threshold (for QA list). */
+        let overlapPairsCache = [];
+
+        /** True while the map shows only one overlap pair (QA focus). */
+        let overlapPairFocusActive = false;
+
+        /** Line A = warm orange, line B = indigo (high contrast on satellite/terrain). */
+        const OVERLAP_FOCUS_STYLE_A = {
+            lineColor: '#f97316',
+            outlineColor: '#7c2d12',
+            lineOpacity: 0.95,
+            outlineOpacity: 0.28,
+            lineWeight: 2,
+            outlineWeight: 4,
+            zIndexBase: 50
+        };
+        const OVERLAP_FOCUS_STYLE_B = {
+            lineColor: '#6366f1',
+            outlineColor: '#312e81',
+            lineOpacity: 0.95,
+            outlineOpacity: 0.28,
+            lineWeight: 2,
+            outlineWeight: 4,
+            zIndexBase: 60
         };
 
         function initGoogleMap() {
@@ -905,6 +1031,349 @@
             } else {
                 return `${(meters / 1000).toFixed(2)} km`;
             }
+        }
+
+        function isLineGeometryType(t) {
+            return t === 'LineString' || t === 'MultiLineString';
+        }
+
+        function getFeatureLineParts(feature) {
+            const g = feature.geometry;
+            if (!g || !g.coordinates) return [];
+            if (g.type === 'LineString') return [g.coordinates];
+            if (g.type === 'MultiLineString') return g.coordinates;
+            return [];
+        }
+
+        function computeFeatureLineBBox(feature) {
+            let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+            const parts = getFeatureLineParts(feature);
+            parts.forEach(coords => {
+                coords.forEach(([lng, lat]) => {
+                    if (lat < minLat) minLat = lat;
+                    if (lat > maxLat) maxLat = lat;
+                    if (lng < minLng) minLng = lng;
+                    if (lng > maxLng) maxLng = lng;
+                });
+            });
+            if (minLat === Infinity) return null;
+            return { minLat, maxLat, minLng, maxLng };
+        }
+
+        function bboxPadsForThresholdMeters(thresholdM, refLat) {
+            const latPad = thresholdM / 110946.25;
+            const cos = Math.max(0.2, Math.cos((refLat || 25.76) * Math.PI / 180));
+            const lngPad = thresholdM / (111319.9 * cos);
+            return { latPad, lngPad };
+        }
+
+        function bboxesMightOverlap(a, b, latPad, lngPad) {
+            if (!a || !b) return true;
+            const alo = a.minLng - lngPad, ahi = a.maxLng + lngPad;
+            const blo = b.minLng - lngPad, bhi = b.maxLng + lngPad;
+            if (ahi < blo || bhi < alo) return false;
+            const ala = a.minLat - latPad, aha = a.maxLat + latPad;
+            const bla = b.minLat - latPad, bha = b.maxLat + latPad;
+            if (aha < bla || bha < ala) return false;
+            return true;
+        }
+
+        function latLngToXYMeters(lat, lng, refLat) {
+            const mPerDegLat = 110946.25;
+            const mPerDegLng = 111319.9 * Math.max(0.15, Math.cos(refLat * Math.PI / 180));
+            return { x: lng * mPerDegLng, y: lat * mPerDegLat };
+        }
+
+        function orient2D(ax, ay, bx, by, cx, cy) {
+            const v = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+            if (Math.abs(v) < 1e-12) return 0;
+            return v > 0 ? 1 : -1;
+        }
+
+        function onSeg2D(px, py, ax, ay, bx, by) {
+            return px + 1e-10 >= Math.min(ax, bx) && px - 1e-10 <= Math.max(ax, bx) &&
+                   py + 1e-10 >= Math.min(ay, by) && py - 1e-10 <= Math.max(ay, by);
+        }
+
+        function segmentsIntersectXY(ax, ay, bx, by, cx, cy, dx, dy) {
+            const o1 = orient2D(ax, ay, bx, by, cx, cy);
+            const o2 = orient2D(ax, ay, bx, by, dx, dy);
+            const o3 = orient2D(cx, cy, dx, dy, ax, ay);
+            const o4 = orient2D(cx, cy, dx, dy, bx, by);
+            if (o1 !== o2 && o3 !== o4) return true;
+            if (o1 === 0 && onSeg2D(cx, cy, ax, ay, bx, by)) return true;
+            if (o2 === 0 && onSeg2D(dx, dy, ax, ay, bx, by)) return true;
+            if (o3 === 0 && onSeg2D(ax, ay, cx, cy, dx, dy)) return true;
+            if (o4 === 0 && onSeg2D(bx, by, cx, cy, dx, dy)) return true;
+            return false;
+        }
+
+        function pointSegDistSqXY(px, py, ax, ay, bx, by) {
+            const abx = bx - ax, aby = by - ay;
+            const apx = px - ax, apy = py - ay;
+            const ab2 = abx * abx + aby * aby;
+            let t = ab2 < 1e-18 ? 0 : (apx * abx + apy * aby) / ab2;
+            t = Math.max(0, Math.min(1, t));
+            const qx = ax + t * abx, qy = ay + t * aby;
+            const dx = px - qx, dy = py - qy;
+            return dx * dx + dy * dy;
+        }
+
+        function segmentSegmentMinMeters(lat1, lng1, lat2, lng2, lat3, lng3, lat4, lng4) {
+            const refLat = (lat1 + lat2 + lat3 + lat4) / 4;
+            const p1 = latLngToXYMeters(lat1, lng1, refLat);
+            const p2 = latLngToXYMeters(lat2, lng2, refLat);
+            const p3 = latLngToXYMeters(lat3, lng3, refLat);
+            const p4 = latLngToXYMeters(lat4, lng4, refLat);
+            const ax = p1.x, ay = p1.y, bx = p2.x, by = p2.y;
+            const cx = p3.x, cy = p3.y, dx = p4.x, dy = p4.y;
+            if (segmentsIntersectXY(ax, ay, bx, by, cx, cy, dx, dy)) return 0;
+            const d2 = Math.min(
+                pointSegDistSqXY(ax, ay, cx, cy, dx, dy),
+                pointSegDistSqXY(bx, by, cx, cy, dx, dy),
+                pointSegDistSqXY(cx, cy, ax, ay, bx, by),
+                pointSegDistSqXY(dx, dy, ax, ay, bx, by)
+            );
+            return Math.sqrt(Math.max(0, d2));
+        }
+
+        function minDistanceBetweenLineParts(coordsA, coordsB) {
+            let best = Infinity;
+            for (let i = 0; i < coordsA.length - 1; i++) {
+                const [lng1, lat1] = coordsA[i];
+                const [lng2, lat2] = coordsA[i + 1];
+                if (lat1 === lat2 && lng1 === lng2) continue;
+                for (let j = 0; j < coordsB.length - 1; j++) {
+                    const [lng3, lat3] = coordsB[j];
+                    const [lng4, lat4] = coordsB[j + 1];
+                    if (lat3 === lat4 && lng3 === lng4) continue;
+                    const d = segmentSegmentMinMeters(lat1, lng1, lat2, lng2, lat3, lng3, lat4, lng4);
+                    if (d < best) best = d;
+                    if (best === 0) return 0;
+                }
+            }
+            return best;
+        }
+
+        function minDistanceBetweenFeatures(featA, featB) {
+            const partsA = getFeatureLineParts(featA);
+            const partsB = getFeatureLineParts(featB);
+            let best = Infinity;
+            partsA.forEach(pa => {
+                partsB.forEach(pb => {
+                    const d = minDistanceBetweenLineParts(pa, pb);
+                    if (d < best) best = d;
+                });
+            });
+            return best;
+        }
+
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function featureLabel(feature) {
+            const p = feature.properties || {};
+            const id = p['ID'] != null && p['ID'] !== '' ? String(p['ID']) : '—';
+            const mapper = p['Mapper Name'] || '—';
+            const zone = p['ZONE NUMBER'] != null && p['ZONE NUMBER'] !== '' ? String(p['ZONE NUMBER']) : '—';
+            return { id, mapper, zone, haystack: `${id} ${mapper} ${zone}`.toLowerCase() };
+        }
+
+        function runOverlapScan() {
+            const listEl = document.getElementById('overlapList');
+            const summaryEl = document.getElementById('overlapSummary');
+            const thrInput = document.getElementById('overlapThresholdM');
+            const scanBtn = document.getElementById('overlapScanBtn');
+
+            if (!map || allFeatures.length === 0) {
+                showStatus('Load data first, then run overlap scan.', 'error');
+                return;
+            }
+
+            let thresholdM = parseFloat(thrInput && thrInput.value);
+            if (!Number.isFinite(thresholdM) || thresholdM <= 0) thresholdM = 4;
+
+            const lineFeatures = allFeatures
+                .map((f, idx) => ({ f, idx }))
+                .filter(({ f }) => f.geometry && isLineGeometryType(f.geometry.type));
+
+            if (lineFeatures.length < 2) {
+                overlapPairsCache = [];
+                if (summaryEl) summaryEl.textContent = 'Need at least two line routes to compare.';
+                if (listEl) listEl.innerHTML = '<div class="overlap-qa-empty">No pairs to check.</div>';
+                return;
+            }
+
+            const refLat = lineFeatures.reduce((sum, { f }) => {
+                const b = computeFeatureLineBBox(f);
+                return sum + (b ? (b.minLat + b.maxLat) / 2 : 25.76);
+            }, 0) / lineFeatures.length;
+            const { latPad, lngPad } = bboxPadsForThresholdMeters(thresholdM, refLat);
+
+            const bboxes = lineFeatures.map(({ f }) => computeFeatureLineBBox(f));
+
+            scanBtn.disabled = true;
+            showStatus(`Scanning ${lineFeatures.length} routes for overlaps…`, 'loading');
+            if (summaryEl) summaryEl.textContent = 'Scanning…';
+
+            const found = [];
+            const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
+            setTimeout(() => {
+                try {
+                    for (let i = 0; i < lineFeatures.length; i++) {
+                        for (let j = i + 1; j < lineFeatures.length; j++) {
+                            if (!bboxesMightOverlap(bboxes[i], bboxes[j], latPad, lngPad)) continue;
+                            const fa = lineFeatures[i].f;
+                            const fb = lineFeatures[j].f;
+                            const d = minDistanceBetweenFeatures(fa, fb);
+                            if (d <= thresholdM) {
+                                found.push({
+                                    featureA: fa,
+                                    featureB: fb,
+                                    indexA: lineFeatures[i].idx,
+                                    indexB: lineFeatures[j].idx,
+                                    minDistM: d
+                                });
+                            }
+                        }
+                    }
+                    found.sort((a, b) => a.minDistM - b.minDistM);
+                    overlapPairsCache = found;
+                    const ms = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0;
+                    if (summaryEl) {
+                        summaryEl.textContent = found.length
+                            ? `${found.length} pair(s) within ${thresholdM} m · ${Math.round(ms)} ms`
+                            : `No pairs within ${thresholdM} m · ${Math.round(ms)} ms`;
+                    }
+                    renderOverlapList();
+                    showStatus(`Overlap scan complete (${found.length} pair${found.length === 1 ? '' : 's'})`, 'success');
+                } catch (e) {
+                    console.error(e);
+                    showStatus(`Overlap scan failed: ${e.message}`, 'error');
+                    if (summaryEl) summaryEl.textContent = 'Scan failed.';
+                } finally {
+                    scanBtn.disabled = false;
+                }
+            }, 30);
+        }
+
+        function renderOverlapList() {
+            const listEl = document.getElementById('overlapList');
+            const summaryEl = document.getElementById('overlapSummary');
+            if (!listEl) return;
+
+            const filterInput = document.getElementById('overlapListFilter');
+            const diffMapper = document.getElementById('overlapDiffMapperOnly');
+            const diffZone = document.getElementById('overlapDiffZoneOnly');
+            const q = (filterInput && filterInput.value || '').trim().toLowerCase();
+            const wantDiffMapper = diffMapper && diffMapper.checked;
+            const wantDiffZone = diffZone && diffZone.checked;
+
+            if (!overlapPairsCache.length) {
+                listEl.innerHTML = '<div class="overlap-qa-empty">Run Scan after loading data.</div>';
+                return;
+            }
+
+            const rowTuples = overlapPairsCache
+                .map((pair, cacheIdx) => ({ pair, cacheIdx }))
+                .filter(({ pair }) => {
+                    const la = featureLabel(pair.featureA);
+                    const lb = featureLabel(pair.featureB);
+                    if (wantDiffMapper && la.mapper === lb.mapper) return false;
+                    if (wantDiffZone && la.zone === lb.zone) return false;
+                    if (!q) return true;
+                    return la.haystack.includes(q) || lb.haystack.includes(q);
+                });
+
+            if (!rowTuples.length) {
+                listEl.innerHTML = '<div class="overlap-qa-empty">No pairs match the current filters.</div>';
+                if (summaryEl && overlapPairsCache.length) {
+                    const thrInput = document.getElementById('overlapThresholdM');
+                    const thr = thrInput && parseFloat(thrInput.value);
+                    const t = Number.isFinite(thr) && thr > 0 ? thr : 4;
+                    summaryEl.textContent = `${overlapPairsCache.length} pair(s) within ${t} m · 0 shown after filters`;
+                }
+                return;
+            }
+
+            listEl.innerHTML = rowTuples.map(({ pair, cacheIdx }) => {
+                const la = featureLabel(pair.featureA);
+                const lb = featureLabel(pair.featureB);
+                const distLabel = pair.minDistM < 0.05
+                    ? 'touch / cross'
+                    : `${pair.minDistM.toFixed(1)} m`;
+                return `
+                    <div class="overlap-qa-row" role="listitem" data-overlap-idx="${cacheIdx}">
+                        <div><span class="overlap-qa-badge">${escapeHtml(distLabel)}</span>
+                        <strong>${escapeHtml(la.id)}</strong> ↔ <strong>${escapeHtml(lb.id)}</strong></div>
+                        <div class="overlap-qa-row-meta">
+                            ${escapeHtml(la.mapper)} / Z${escapeHtml(la.zone)}
+                            · ${escapeHtml(lb.mapper)} / Z${escapeHtml(lb.zone)}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            listEl.querySelectorAll('.overlap-qa-row').forEach(row => {
+                row.addEventListener('click', () => {
+                    const i = parseInt(row.getAttribute('data-overlap-idx'), 10);
+                    if (Number.isFinite(i) && overlapPairsCache[i]) focusOverlapPair(overlapPairsCache[i]);
+                });
+            });
+
+            if (summaryEl && overlapPairsCache.length) {
+                const thrInput = document.getElementById('overlapThresholdM');
+                const thr = thrInput && parseFloat(thrInput.value);
+                const t = Number.isFinite(thr) && thr > 0 ? thr : 4;
+                summaryEl.textContent = `${overlapPairsCache.length} pair(s) within ${t} m · showing ${rowTuples.length} after filters`;
+            }
+        }
+
+        function setOverlapFocusUiVisible(visible) {
+            const btn = document.getElementById('overlapExitFocusBtn');
+            if (btn) btn.style.display = visible ? 'flex' : 'none';
+        }
+
+        function exitOverlapPairFocus() {
+            if (!overlapPairFocusActive) return;
+            overlapPairFocusActive = false;
+            setOverlapFocusUiVisible(false);
+            clearMapFeatures();
+            const filtered = getFilteredFeatures();
+            if (filtered.length > 0) {
+                addFeaturesToMap(filtered);
+            }
+        }
+
+        /** Show only the two routes in contrasting colors and zoom in as far as bounds allow. */
+        function focusOverlapPair(pair) {
+            if (!map || !pair || !pair.featureA || !pair.featureB) return;
+
+            removeMapDataOverlays();
+            overlapPairFocusActive = true;
+            setOverlapFocusUiVisible(true);
+
+            const bounds = new google.maps.LatLngBounds();
+            addLineFeatureToMap(pair.featureA, bounds, OVERLAP_FOCUS_STYLE_A);
+            addLineFeatureToMap(pair.featureB, bounds, OVERLAP_FOCUS_STYLE_B);
+
+            ensureClusterer();
+            dotsCurrentlyVisible = false;
+            updateDotVisibility();
+
+            if (!bounds.isEmpty()) {
+                // Minimal padding so fitBounds chooses the tightest zoom that still fits both routes.
+                const pad = 8;
+                map.fitBounds(bounds, { top: pad, bottom: pad, left: pad, right: pad });
+            }
+
+            showStatus('Pair view: orange vs indigo. Other routes are hidden.', 'success');
         }
 
         // Extract Sheet ID from Google Sheets URL
@@ -1214,10 +1683,28 @@
             `;
         }
 
-        function addLineFeatureToMap(feature, bounds) {
+        /**
+         * @param {object} [lineStyle] Optional stroke styling (used for overlap QA focus).
+         * @param {string} [lineStyle.lineColor]
+         * @param {string} [lineStyle.outlineColor]
+         * @param {number} [lineStyle.lineOpacity]
+         * @param {number} [lineStyle.outlineOpacity]
+         * @param {number} [lineStyle.lineWeight]
+         * @param {number} [lineStyle.outlineWeight]
+         * @param {number} [lineStyle.zIndexBase]
+         */
+        function addLineFeatureToMap(feature, bounds, lineStyle) {
             const geom = feature.geometry;
             const props = feature.properties;
             const lineArrays = geom.type === 'LineString' ? [geom.coordinates] : geom.coordinates;
+
+            const outlineColor = lineStyle && lineStyle.outlineColor != null ? lineStyle.outlineColor : '#222222';
+            const outlineOpacity = lineStyle && lineStyle.outlineOpacity != null ? lineStyle.outlineOpacity : 0.35;
+            const outlineWeight = lineStyle && lineStyle.outlineWeight != null ? lineStyle.outlineWeight : 5;
+            const lineColor = lineStyle && lineStyle.lineColor != null ? lineStyle.lineColor : '#000000';
+            const lineOpacity = lineStyle && lineStyle.lineOpacity != null ? lineStyle.lineOpacity : 0.9;
+            const lineWeight = lineStyle && lineStyle.lineWeight != null ? lineStyle.lineWeight : 3;
+            const zBase = lineStyle && lineStyle.zIndexBase != null ? lineStyle.zIndexBase : 1;
 
             const onRouteClick = (e) => {
                 routeClickedFlag = true;
@@ -1233,20 +1720,20 @@
                 const outline = new google.maps.Polyline({
                     path,
                     map,
-                    strokeColor: '#222222',
-                    strokeOpacity: 0.35,
-                    strokeWeight: 5,
+                    strokeColor: outlineColor,
+                    strokeOpacity: outlineOpacity,
+                    strokeWeight: outlineWeight,
                     clickable: true,
-                    zIndex: 1
+                    zIndex: zBase
                 });
                 const line = new google.maps.Polyline({
                     path,
                     map,
-                    strokeColor: '#000000',
-                    strokeOpacity: 0.9,
-                    strokeWeight: 3,
+                    strokeColor: lineColor,
+                    strokeOpacity: lineOpacity,
+                    strokeWeight: lineWeight,
                     clickable: true,
-                    zIndex: 2
+                    zIndex: zBase + 1
                 });
                 loadedMapOverlays.push(outline, line);
 
@@ -1480,7 +1967,16 @@
         // Clear all features from the map
         function clearMap() {
             removeMapDataOverlays();
+            overlapPairFocusActive = false;
+            setOverlapFocusUiVisible(false);
             allFeatures = [];
+            overlapPairsCache = [];
+            const overlapList = document.getElementById('overlapList');
+            const overlapSummary = document.getElementById('overlapSummary');
+            const overlapFilter = document.getElementById('overlapListFilter');
+            if (overlapList) overlapList.innerHTML = '<div class="overlap-qa-empty">Run Scan after loading data.</div>';
+            if (overlapSummary) overlapSummary.textContent = '';
+            if (overlapFilter) overlapFilter.value = '';
 
             // Clear filters
             document.getElementById('filterMapper').innerHTML = '<option value="">All Mappers</option>';
@@ -1605,6 +2101,10 @@
 
         // Apply filters to map
         function applyFilters() {
+            if (overlapPairFocusActive) {
+                overlapPairFocusActive = false;
+                setOverlapFocusUiVisible(false);
+            }
             const selectedMapper = document.getElementById('filterMapper').value;
             const previousMapper = currentFilters.mapper;
             
@@ -1623,6 +2123,10 @@
 
         // Search for ID with zoom and popup
         function searchObjectId() {
+            if (overlapPairFocusActive) {
+                overlapPairFocusActive = false;
+                setOverlapFocusUiVisible(false);
+            }
             const searchValue = document.getElementById('searchObjectId').value.trim();
             currentFilters.searchObjectId = searchValue;
             
@@ -1796,6 +2300,10 @@
 
         // Update map with filtered features
         function updateMapWithFilters() {
+            if (overlapPairFocusActive) {
+                overlapPairFocusActive = false;
+                setOverlapFocusUiVisible(false);
+            }
             // Clear existing features
             clearMapFeatures();
             
@@ -1819,6 +2327,10 @@
 
         // Clear all filters
         function clearFilters() {
+            if (overlapPairFocusActive) {
+                overlapPairFocusActive = false;
+                setOverlapFocusUiVisible(false);
+            }
             document.getElementById('filterMapper').value = '';
             document.getElementById('filterZone').value = '';
             document.getElementById('searchObjectId').value = '';
