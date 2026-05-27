@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <br><br>
+    <img src="DataOps.png" width="150" height="100">
+    <title>Data Ops Search Engine</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <a href="#" class="logo">Search Engine</a>
+    </header>
+    <main>
+        <form id="searchForm">
+            <label for="keywords">Keywords:</label>
+            <input type="text" id="keywords" name="keywords">
+            <br><br>
+            <label for="websiteUrl">Website URL:</label>
+            <input type="text" id="websiteUrl" name="websiteUrl">
+            <p>For the website URL, you can enter the website of the parking operator, for example, <b><i>lazparking.com</b></i>, or other parking search engines.
+                <br><br>
+                parkopedia.com
+                <br>
+                parkchirp.com
+                <br>
+                spotangels.com
+                <br>
+                parkme.com</p>
+            <button type="submit">Search</button>
+            <br>
+        </form>
+        <div id="resultsContainer">
+            <!-- Results will be dynamically inserted here -->
+        </div>
+    </main>
+    
+    <iframe id="resultsIframe" name="resultsIframe" style="display:none;"></iframe>
+    <script src="app.js"></script>
+</body>
+</html>
