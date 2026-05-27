@@ -3,40 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <br><br>
-    <img src="DataOps.png" width="150" height="100">
-    <title>Data Ops Search Engine</title>
+    <title>Parking Source Finder — Data Ops</title>
+    <meta name="description" content="Find parking locations faster with related keywords and Google search operators — no memorization required.">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header>
-        <a href="#" class="logo">Search Engine</a>
-    </header>
-    <main>
-        <form id="searchForm">
-            <label for="keywords">Keywords:</label>
-            <input type="text" id="keywords" name="keywords">
-            <br><br>
-            <label for="websiteUrl">Website URL:</label>
-            <input type="text" id="websiteUrl" name="websiteUrl">
-            <p>For the website URL, you can enter the website of the parking operator, for example, <b><i>lazparking.com</b></i>, or other parking search engines.
-                <br><br>
-                parkopedia.com
-                <br>
-                parkchirp.com
-                <br>
-                spotangels.com
-                <br>
-                parkme.com</p>
-            <button type="submit">Search</button>
-            <br>
-        </form>
-        <div id="resultsContainer">
-            <!-- Results will be dynamically inserted here -->
-        </div>
-    </main>
-    
-    <iframe id="resultsIframe" name="resultsIframe" style="display:none;"></iframe>
-    <script src="app.js"></script>
+    <div class="app">
+        <header class="header">
+            <a href="../index.html" class="header-back" aria-label="Back to mapping tools">← Tools</a>
+            <div class="header-brand">
+                <img src="DataOps.png" alt="Data Ops" class="header-logo" width="120" height="80">
+                <div>
+                    <h1>Parking Source Finder</h1>
+                    <p class="header-tagline">Spot terms on operator sites and across the web — faster than manual Google searches</p>
+                </div>
+            </div>
+        </header>
+
+        <main class="main">
+            <section class="panel search-panel" aria-labelledby="search-heading">
+                <h2 id="search-heading" class="panel-title">Build your search</h2>
+
+                <form id="searchForm" class="search-form">
+                    <fieldset class="facility-fields">
+                        <legend class="facility-legend">Parking facility</legend>
+
+                        <div class="field">
+                            <label for="facilityName">Facility name</label>
+                            <input type="text" id="facilityName" name="facilityName" placeholder="e.g. Prudential Center Garage" autocomplete="off" spellcheck="false">
+                        </div>
+
+                        <div class="field">
+                            <label for="address">Address</label>
+                            <input type="text" id="address" name="address" placeholder="e.g. 800 Boylston St" autocomplete="off" spellcheck="false">
+                        </div>
+
+                        <div class="field-row">
+                            <div class="field">
+                                <label for="city">City</label>
+                                <input type="text" id="city" name="city" placeholder="e.g. Boston" autocomplete="off" spellcheck="false">
+                            </div>
+                            <div class="field field-state">
+                                <label for="state">State</label>
+                                <input type="text" id="state" name="state" placeholder="e.g. MA" maxlength="2" autocomplete="off" spellcheck="false">
+                            </div>
+                        </div>
+
+                        <p class="field-hint">Fill in any combination — searches combine the details you provide.</p>
+                    </fieldset>
+
+                    <div class="field">
+                        <label for="websiteUrl">Target website <span class="optional">(optional)</span></label>
+                        <input type="text" id="websiteUrl" name="websiteUrl" placeholder="e.g. lazparking.com" autocomplete="off" spellcheck="false">
+                        <div class="site-presets" id="sitePresets" role="group" aria-label="Common parking sites"></div>
+                    </div>
+
+                    <div class="keyword-section">
+                        <span class="keyword-label">Related terms</span>
+                        <div class="keyword-chips" id="keywordChips" role="group" aria-label="Suggested parking keywords"></div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" id="searchBtn">
+                            <span class="btn-text">Generate searches</span>
+                        </button>
+                        <button type="button" class="btn btn-ghost" id="clearBtn">Clear</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="results-section" id="resultsSection" hidden aria-labelledby="results-heading">
+                <div class="results-header">
+                    <h2 id="results-heading">Search links</h2>
+                    <div class="results-actions">
+                        <button type="button" class="btn btn-sm btn-ghost" id="copyAllBtn">Copy all links</button>
+                        <button type="button" class="btn btn-sm btn-secondary" id="openAllBtn">Open all</button>
+                    </div>
+                </div>
+                <div id="resultsContainer" class="results-grid"></div>
+            </section>
+
+            <section class="panel recent-panel" id="recentPanel" hidden aria-labelledby="recent-heading">
+                <h2 id="recent-heading" class="panel-title">Recent searches</h2>
+                <ul id="recentList" class="recent-list"></ul>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js" defer></script>
 </body>
 </html>
