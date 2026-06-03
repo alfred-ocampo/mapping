@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiz Editor — LiveQuiz</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="wrap wrap-wide">
+    <div class="top-bar">
+      <a href="/" class="back-link">← Home</a>
+      <span class="logo">Quiz Editor</span>
+      <div>
+        <button type="button" id="saveBtn" class="btn btn-primary">Save quiz</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="field">
+        <label for="quizTitle">Quiz title</label>
+        <input type="text" id="quizTitle" placeholder="e.g. Team trivia night" maxlength="120">
+      </div>
+      <div class="field">
+        <label for="quizDesc">Description (optional)</label>
+        <textarea id="quizDesc" rows="2" placeholder="Short description for players" maxlength="500"></textarea>
+      </div>
+    </div>
+
+    <div class="editor-layout">
+      <aside class="panel">
+        <h2 class="panel-title">Questions</h2>
+        <ul id="questionNav" class="question-nav"></ul>
+        <button type="button" id="addQuestionBtn" class="btn btn-secondary btn-block btn-sm">+ Add question</button>
+        <button type="button" id="deleteQuestionBtn" class="btn btn-ghost btn-block btn-sm" style="margin-top:8px">Delete question</button>
+      </aside>
+
+      <main class="panel" id="questionEditor">
+        <div class="field">
+          <label for="qText">Question</label>
+          <input type="text" id="qText" placeholder="Enter your question" maxlength="300">
+        </div>
+
+        <div class="field">
+          <label>Media (optional)</label>
+          <input type="file" id="mediaFile" accept="image/*,video/*,audio/*">
+          <p class="field-hint">Images, video (mp4/webm), or audio — max 25 MB</p>
+          <div id="mediaPreview" class="media-preview" hidden></div>
+          <button type="button" id="clearMediaBtn" class="btn btn-ghost btn-sm" hidden style="margin-top:8px">Remove media</button>
+        </div>
+
+        <div class="field">
+          <label for="qTime">Time limit (seconds)</label>
+          <input type="number" id="qTime" min="5" max="120" value="20">
+        </div>
+
+        <p class="field-hint" style="margin-bottom:12px">Click a colored circle to mark the correct answer.</p>
+        <div id="choicesEditor"></div>
+        <button type="button" id="addChoiceBtn" class="btn btn-ghost btn-sm">+ Add choice (max 4)</button>
+      </main>
+    </div>
+  </div>
+
+  <script type="module" src="/js/editor.js"></script>
+</body>
+</html>

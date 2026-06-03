@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Host Game — LiveQuiz</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="wrap wrap-wide">
+    <div class="top-bar">
+      <a href="/" class="back-link">← Home</a>
+      <span class="logo">Host</span>
+      <span id="quizTitleLabel" class="quiz-meta"></span>
+    </div>
+
+    <section id="pickQuiz" class="panel">
+      <h2 class="panel-title">Select a quiz to host</h2>
+      <ul id="hostQuizList" class="quiz-list"></ul>
+      <p id="hostEmpty" class="empty-state" hidden>Create a quiz first in the editor.</p>
+    </section>
+
+    <section id="gameView" hidden>
+      <div id="lobbyView" class="stage">
+        <p style="color:var(--muted);margin:0">Join at this site → <strong>Join game</strong></p>
+        <p class="pin-display" id="pinDisplay" aria-live="polite"></p>
+        <p><span id="playerCount">0</span> players joined</p>
+        <div id="lobbyPlayers" class="lobby-players"></div>
+        <div class="host-bar">
+          <button type="button" id="startGameBtn" class="btn btn-primary" disabled>Start game</button>
+        </div>
+      </div>
+
+      <div id="questionView" class="stage" hidden>
+        <p class="quiz-meta" id="qProgress"></p>
+        <div id="hostMedia" class="stage-media" hidden></div>
+        <h2 class="stage-question" id="hostQuestionText"></h2>
+        <div class="timer-bar"><div class="timer-fill" id="hostTimer"></div></div>
+        <p id="hostAnswered" class="quiz-meta"></p>
+        <div id="hostBarChart" class="bar-chart" hidden></div>
+        <div class="host-bar">
+          <button type="button" id="skipBtn" class="btn btn-secondary">Skip timer</button>
+          <button type="button" id="nextBtn" class="btn btn-primary" hidden>Next</button>
+        </div>
+      </div>
+
+      <div id="leaderboardView" class="stage" hidden>
+        <h2 class="stage-question" id="lbTitle">Leaderboard</h2>
+        <ol id="hostLeaderboard" class="leaderboard"></ol>
+        <div class="host-bar">
+          <button type="button" id="lbNextBtn" class="btn btn-primary">Continue</button>
+        </div>
+      </div>
+
+      <div id="finishedView" class="stage" hidden>
+        <h2 class="stage-question">Final leaderboard</h2>
+        <ol id="finalLeaderboard" class="leaderboard"></ol>
+        <div class="host-bar">
+          <a href="/" class="btn btn-secondary">Home</a>
+          <button type="button" id="endGameBtn" class="btn btn-ghost">End session</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/js/host.js"></script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "16a0d03b-9ddc-4cc9-8b9b-0a084f64e9be",
+    "title": "Demo Quiz",
+    "description": "",
+    "questions": [
+      {
+        "text": "What is 2+2?",
+        "mediaUrl": null,
+        "mediaType": null,
+        "choices": [
+          {
+            "text": "3"
+          },
+          {
+            "text": "4"
+          },
+          {
+            "text": "5"
+          },
+          {
+            "text": "6"
+          }
+        ],
+        "correctIndex": 1,
+        "timeSec": 20
+      }
+    ],
+    "updatedAt": "2026-06-03T13:36:33.299Z",
+    "createdAt": "2026-06-03T13:36:33.300Z"
+  }
+]

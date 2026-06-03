@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LiveQuiz — Host & Play</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="top-bar">
+      <a href="../index.html" class="back-link">← Tools</a>
+      <span class="logo">LiveQuiz</span>
+    </div>
+
+    <section class="hero">
+      <h1>Create. Host. Play.</h1>
+      <p>Build quizzes with images and video, share a PIN, and compete live with a real-time leaderboard.</p>
+    </section>
+
+    <div class="grid-3">
+      <article class="card">
+        <h2>Create quiz</h2>
+        <p>Add questions, multiple-choice answers, and upload images or video.</p>
+        <a href="/editor.html" class="btn btn-primary btn-block">Open editor</a>
+      </article>
+
+      <article class="card">
+        <h2>Host live game</h2>
+        <p>Pick a quiz, get a 6-digit PIN, and run the game on the big screen.</p>
+        <a href="/host.html" class="btn btn-primary btn-block">Host game</a>
+      </article>
+
+      <article class="card">
+        <h2>Join game</h2>
+        <p>Enter the PIN from the host and play on your phone or laptop.</p>
+        <a href="/play.html" class="btn btn-primary btn-block">Join with PIN</a>
+      </article>
+    </div>
+
+    <section class="panel" style="margin-top: 32px;">
+      <h2 class="panel-title">Your quizzes</h2>
+      <ul id="quizList" class="quiz-list"></ul>
+      <p id="emptyQuizzes" class="empty-state" hidden>No quizzes yet. Create one in the editor.</p>
+    </section>
+  </div>
+
+  <script type="module">
+    import { api } from '/js/shared.js';
+
+    const list = document.getElementById('quizList');
+    const empty = document.getElementById('emptyQuizzes');
+
+    async function load() {
+      const quizzes = await api('/api/quizzes');
+      list.innerHTML = '';
+      if (!quizzes.length) {
+        empty.hidden = false;
+        return;
+      }
+      empty.hidden = true;
+      for (const q of quizzes) {
+        const li = document.createElement('li');
+        const n = q.questions?.length ?? 0;
+        li.innerHTML = `
+          <div>
+            <strong>${escapeHtml(q.title)}</strong>
+            <div class="quiz-meta">${n} question${n === 1 ? '' : 's'}</div>
+          </div>
+          <div class="quiz-actions">
+            <a href="/editor.html?id=${q.id}" class="btn btn-sm btn-secondary">Edit</a>
+            <a href="/host.html?quiz=${q.id}" class="btn btn-sm btn-primary">Host</a>
+          </div>`;
+        list.appendChild(li);
+      }
+    }
+
+    function escapeHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    load().catch(() => {
+      empty.textContent = 'Start the server: cd livequiz && npm start';
+      empty.hidden = false;
+    });
+  </script>
+</body>
+</html>

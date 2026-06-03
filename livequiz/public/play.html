@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join Game — LiveQuiz</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="top-bar">
+      <a href="/" class="back-link">← Home</a>
+      <span class="logo">Join</span>
+    </div>
+
+    <form id="joinForm" class="panel join-form">
+      <div class="field">
+        <label for="pin">Game PIN</label>
+        <input type="text" id="pin" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" autocomplete="off" required>
+      </div>
+      <div class="field">
+        <label for="nickname">Nickname</label>
+        <input type="text" id="nickname" maxlength="20" placeholder="Your name" required autocomplete="nickname">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Enter</button>
+      <p id="joinError" class="field-hint" style="color:var(--danger);text-align:center" hidden></p>
+    </form>
+
+    <section id="waitingView" class="status-msg" hidden>
+      <p>You're in! Waiting for the host to start…</p>
+      <p id="waitNick" style="font-size:24px;font-weight:700;color:var(--pin)"></p>
+    </section>
+
+    <section id="playView" hidden>
+      <div id="playQuestion" class="stage">
+        <p id="playProgress" class="quiz-meta"></p>
+        <div id="playMedia" class="stage-media" hidden></div>
+        <h2 id="playQText" class="stage-question" style="font-size:22px"></h2>
+        <div class="timer-bar"><div class="timer-fill" id="playTimer"></div></div>
+        <div id="answerGrid" class="answer-grid"></div>
+      </div>
+
+      <div id="feedbackView" class="stage" hidden>
+        <p id="feedbackText" class="feedback"></p>
+        <p class="quiz-meta">Wait for next question…</p>
+      </div>
+
+      <div id="playLeaderboard" class="stage" hidden>
+        <h2 class="stage-question" style="font-size:24px">Standings</h2>
+        <ol id="playLb" class="leaderboard"></ol>
+      </div>
+
+      <div id="playFinished" class="stage" hidden>
+        <h2 class="stage-question">Game over!</h2>
+        <p id="yourRank" class="feedback"></p>
+        <ol id="playFinalLb" class="leaderboard"></ol>
+        <a href="/play.html" class="btn btn-primary btn-block" style="max-width:280px;margin:24px auto 0">Play again</a>
+      </div>
+    </section>
+
+    <p id="closedMsg" class="status-msg" hidden></p>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/js/play.js"></script>
+</body>
+</html>
