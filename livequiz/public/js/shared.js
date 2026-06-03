@@ -1,3 +1,23 @@
+export async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('Copied to clipboard');
+    return true;
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    if (ok) toast('Copied to clipboard');
+    return ok;
+  }
+}
+
 export function toast(msg, ms = 2800) {
   const el = document.createElement('div');
   el.className = 'toast';

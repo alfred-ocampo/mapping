@@ -503,6 +503,64 @@ a:hover { color: var(--text); }
   font-weight: 700;
 }
 
+.join-remote-hint,
+.join-remote-player-hint {
+  color: var(--muted);
+  font-size: 15px;
+  max-width: 520px;
+  margin: 0 auto 8px;
+  line-height: 1.45;
+}
+
+.join-share {
+  max-width: 560px;
+  margin: 0 auto 20px;
+  text-align: left;
+}
+
+.join-share-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.join-url-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--bg-elevated);
+  color: inherit;
+}
+
+.join-url-alt {
+  margin-top: 8px;
+  word-break: break-all;
+}
+
+.join-qr {
+  display: block;
+  margin: 16px auto 0;
+  border-radius: 12px;
+  background: white;
+  padding: 8px;
+}
+
+.join-inline {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.join-inline .pin-input {
+  flex: 1;
+  font-size: 20px;
+  letter-spacing: 0.2em;
+  min-width: 0;
+}
+
 .status-msg {
   text-align: center;
   padding: 48px 20px;

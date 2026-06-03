@@ -1,4 +1,5 @@
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const http = require('http');
 const express = require('express');
@@ -6,7 +7,9 @@ const multer = require('multer');
 const { Server } = require('socket.io');
 const { v4: uuidv4 } = require('uuid');
 
-const PORT = process.env.PORT || 3847;
+const PORT = Number(process.env.PORT) || 3847;
+const HOST = process.env.HOST || '0.0.0.0';
+const PUBLIC_URL = process.env.PUBLIC_URL ? process.env.PUBLIC_URL.replace(/\/$/, '') : '';
 const ROOT = __dirname;
 const DATA_DIR = path.join(ROOT, 'data');
 const QUIZZES_FILE = path.join(DATA_DIR, 'quizzes.json');
@@ -66,6 +69,71 @@ function generatePin() {
     pin = String(Math.floor(100000 + Math.random() * 900000));
   } while (rooms.has(pin));
   return pin;
+}
+
+function buildPlayerJoinUrl(origin, pin) {
+  const base = String(origin).replace(/\/$/, '');
+  return `${base}/play.html?pin=${encodeURIComponent(pin)}`;
+}
+
+/** @param {{ get?: (name: string) => string | undefined, secure?: boolean } | undefined} req */
+function getServerOrigins(req) {
+  const origins = [];
+  const seen = new Set();
+
+  function add(origin) {
+    const o = String(origin).replace(/\/$/, '');
+    if (!o || seen.has(o)) return;
+    seen.add(o);
+    origins.push(o);
+  }
+
+  if (PUBLIC_URL) add(PUBLIC_URL);
+
+  const reqHost = req?.get?.('host');
+  const proto =
+    req?.get?.('x-forwarded-proto') || (req?.secure ? 'https' : 'http');
+  if (reqHost) {
+    const hostOnly = reqHost.split(':')[0];
+    const isLocal =
+      hostOnly === 'localhost' ||
+      hostOnly === '127.0.0.1' ||
+      hostOnly.endsWith('.local');
+    if (!isLocal || origins.length === 0) {
+      add(`${proto}://${reqHost}`);
+    }
+  }
+
+  try {
+    for (const ifaces of Object.values(os.networkInterfaces())) {
+      if (!ifaces) continue;
+      for (const iface of ifaces) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          add(`http://${iface.address}:${PORT}`);
+        }
+      }
+    }
+  } catch {
+    // networkInterfaces may fail in restricted environments
+  }
+
+  if (!origins.length) add(`http://localhost:${PORT}`);
+
+  const isLocalOrigin = (u) => /\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(u);
+  origins.sort((a, b) => Number(isLocalOrigin(a)) - Number(isLocalOrigin(b)));
+  return origins;
+}
+
+function originsFromSocket(socket) {
+  const h = socket.handshake.headers;
+  return getServerOrigins({
+    get(name) {
+      if (name === 'host') return h.host;
+      if (name === 'x-forwarded-proto') return h['x-forwarded-proto'];
+      return undefined;
+    },
+    secure: h['x-forwarded-proto'] === 'https',
+  });
 }
 
 function scoreAnswer(timeMs, totalMs) {
@@ -133,6 +201,28 @@ class Room {
 }
 
 // REST API
+app.get('/api/server-info', (req, res) => {
+  const origins = getServerOrigins(req);
+  res.json({
+    port: PORT,
+    origins,
+    joinPath: '/play.html',
+  });
+});
+
+app.get('/api/rooms/:pin', (req, res) => {
+  const pin = String(req.params.pin).trim();
+  const room = rooms.get(pin);
+  if (!room) return res.status(404).json({ error: 'Game not found. Check the PIN.' });
+  res.json({
+    pin: room.pin,
+    quizTitle: room.quiz.title,
+    phase: room.phase,
+    playerCount: room.players.size,
+    canJoin: room.phase === 'lobby',
+  });
+});
+
 app.get('/api/quizzes', (_req, res) => res.json(readQuizzes()));
 
 app.get('/api/quizzes/:id', (req, res) => {
@@ -215,7 +305,14 @@ io.on('connection', (socket) => {
     socket.join(`host:${pin}`);
     socket.data.role = 'host';
     socket.data.pin = pin;
-    ack?.({ pin, quizTitle: quiz.title });
+    const origins = originsFromSocket(socket);
+    const joinUrls = origins.map((o) => buildPlayerJoinUrl(o, pin));
+    ack?.({
+      pin,
+      quizTitle: quiz.title,
+      joinUrl: joinUrls[0],
+      joinUrls,
+    });
     broadcastRoom(room);
   });
 
@@ -366,6 +463,12 @@ function destroyRoom(pin) {
   rooms.delete(pin);
 }
 
-server.listen(PORT, () => {
-  console.log(`LiveQuiz running at http://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+  const origins = getServerOrigins();
+  console.log(`LiveQuiz running on port ${PORT}`);
+  for (const origin of origins) {
+    console.log(`  → ${origin}`);
+  }
+  console.log(`Players join at /play.html with the game PIN`);
+  if (PUBLIC_URL) console.log(`  (PUBLIC_URL=${PUBLIC_URL})`);
 });

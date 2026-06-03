@@ -13,10 +13,15 @@
       <span class="logo">Join</span>
     </div>
 
+    <p id="remoteHint" class="field-hint join-remote-player-hint" hidden>
+      Open this page on the same network as the host, or use the join link they shared.
+    </p>
+
     <form id="joinForm" class="panel join-form">
       <div class="field">
         <label for="pin">Game PIN</label>
         <input type="text" id="pin" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" autocomplete="off" required>
+        <p id="pinStatus" class="field-hint" aria-live="polite"></p>
       </div>
       <div class="field">
         <label for="nickname">Nickname</label>

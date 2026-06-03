@@ -33,8 +33,12 @@
 
       <article class="card">
         <h2>Join game</h2>
-        <p>Enter the PIN from the host and play on your phone or laptop.</p>
-        <a href="/play.html" class="btn btn-primary btn-block">Join with PIN</a>
+        <p>Enter the 6-digit PIN or open the join link from the host (works on any device on the network).</p>
+        <form class="join-inline" action="/play.html" method="get">
+          <input type="text" name="pin" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="Game PIN" aria-label="Game PIN">
+          <button type="submit" class="btn btn-primary">Join</button>
+        </form>
+        <a href="/play.html" class="btn btn-secondary btn-block" style="margin-top:10px">Open join page</a>
       </article>
     </div>
 

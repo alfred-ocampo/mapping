@@ -1,6 +1,6 @@
-import { renderMedia } from './shared.js';
+import { api, renderMedia } from './shared.js';
 
-const socket = io();
+const socket = io({ transports: ['websocket', 'polling'] });
 let joined = false;
 let myPlayerId = null;
 let answered = false;
@@ -16,12 +16,56 @@ const playFinished = document.getElementById('playFinished');
 let timerId = null;
 let questionEndAt = 0;
 
+const pinInput = document.getElementById('pin');
+const pinStatus = document.getElementById('pinStatus');
+const remoteHint = document.getElementById('remoteHint');
+
 const urlPin = new URLSearchParams(location.search).get('pin');
-if (urlPin) document.getElementById('pin').value = urlPin;
+if (urlPin) {
+  pinInput.value = urlPin.replace(/\D/g, '').slice(0, 6);
+  remoteHint.hidden = false;
+  checkPin(pinInput.value);
+}
+
+let pinCheckTimer = null;
+pinInput.addEventListener('input', () => {
+  const digits = pinInput.value.replace(/\D/g, '').slice(0, 6);
+  if (digits !== pinInput.value) pinInput.value = digits;
+  clearTimeout(pinCheckTimer);
+  if (digits.length !== 6) {
+    pinStatus.textContent = '';
+    return;
+  }
+  pinCheckTimer = setTimeout(() => checkPin(digits), 350);
+});
+
+async function checkPin(pin) {
+  pinStatus.textContent = 'Checking PIN…';
+  try {
+    const info = await api(`/api/rooms/${pin}`);
+    if (info.canJoin) {
+      pinStatus.textContent = `Found: ${info.quizTitle} · ${info.playerCount} in lobby`;
+      pinStatus.style.color = 'var(--success)';
+    } else {
+      pinStatus.textContent = 'This game already started — ask the host for the next round.';
+      pinStatus.style.color = 'var(--danger)';
+    }
+  } catch {
+    pinStatus.textContent = 'No game with this PIN. Check the code or join link.';
+    pinStatus.style.color = 'var(--danger)';
+  }
+}
+
+socket.on('connect_error', () => {
+  const err = document.getElementById('joinError');
+  err.textContent =
+    'Cannot reach the game server. Use the join link from the host (same Wi‑Fi or network).';
+  err.hidden = false;
+});
 
 joinForm.addEventListener('submit', (e) => {
   e.preventDefault();
-  const pin = document.getElementById('pin').value.trim();
+  const pin = pinInput.value.trim();
   const nickname = document.getElementById('nickname').value.trim();
   const err = document.getElementById('joinError');
   err.hidden = true;

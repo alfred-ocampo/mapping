@@ -22,8 +22,16 @@
 
     <section id="gameView" hidden>
       <div id="lobbyView" class="stage">
-        <p style="color:var(--muted);margin:0">Join at this site → <strong>Join game</strong></p>
+        <p class="join-remote-hint">Players on phones or other devices: open the link below and enter the PIN (or use the link — PIN is included).</p>
         <p class="pin-display" id="pinDisplay" aria-live="polite"></p>
+        <div id="joinShare" class="join-share" hidden>
+          <div class="join-share-row">
+            <input type="text" id="joinUrlInput" class="join-url-input" readonly aria-label="Join link">
+            <button type="button" id="copyJoinUrlBtn" class="btn btn-secondary btn-sm">Copy link</button>
+          </div>
+          <p id="joinUrlAlt" class="field-hint join-url-alt" hidden></p>
+          <img id="joinQr" class="join-qr" width="200" height="200" alt="QR code to join game" hidden>
+        </div>
         <p><span id="playerCount">0</span> players joined</p>
         <div id="lobbyPlayers" class="lobby-players"></div>
         <div class="host-bar">

@@ -1,4 +1,4 @@
-import { api, qs, renderMedia } from './shared.js';
+import { api, copyText, qs, renderMedia } from './shared.js';
 
 const socket = io();
 let pin = null;
@@ -46,10 +46,39 @@ function startHosting(quizId, title) {
     pin = res.pin;
     document.getElementById('quizTitleLabel').textContent = res.quizTitle || title;
     document.getElementById('pinDisplay').textContent = pin;
+    showJoinShare(res.joinUrl, res.joinUrls);
     pickQuiz.hidden = true;
     gameView.hidden = false;
   });
 }
+
+function showJoinShare(primaryUrl, allUrls) {
+  const box = document.getElementById('joinShare');
+  const input = document.getElementById('joinUrlInput');
+  const alt = document.getElementById('joinUrlAlt');
+  const qr = document.getElementById('joinQr');
+  const urls = [...new Set((allUrls || []).filter(Boolean))];
+  const joinUrl = primaryUrl || urls[0];
+  if (!joinUrl) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  input.value = joinUrl;
+  if (urls.length > 1) {
+    alt.hidden = false;
+    alt.textContent = `Also try: ${urls.slice(1).join(' · ')}`;
+  } else {
+    alt.hidden = true;
+  }
+  qr.hidden = false;
+  qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(joinUrl)}`;
+}
+
+document.getElementById('copyJoinUrlBtn').addEventListener('click', () => {
+  const url = document.getElementById('joinUrlInput').value;
+  if (url) copyText(url);
+});
 
 function showPhase(phase) {
   lobbyView.hidden = phase !== 'lobby';
