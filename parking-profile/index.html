@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parking Facility Profile — Data Ops</title>
+    <meta name="description" content="Build a parking facility research prompt and open it in Google Gemini.">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <a href="../index.html" class="header-back" aria-label="Back to mapping tools">← Tools</a>
+            <div class="header-brand">
+                <div class="header-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="40" height="40"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Z"/></svg>
+                </div>
+                <div>
+                    <h1>Parking Facility Profile</h1>
+                    <p class="header-tagline">Build a facility research prompt and send it to Gemini using your Google account</p>
+                </div>
+            </div>
+        </header>
+
+        <main class="main">
+            <section class="panel search-panel" aria-labelledby="search-heading">
+                <h2 id="search-heading" class="panel-title">Facility lookup</h2>
+
+                <form id="profileForm" class="search-form">
+                    <fieldset class="facility-fields">
+                        <legend class="facility-legend">Parking facility</legend>
+
+                        <div class="field">
+                            <label for="facilityName">Facility name <span class="required">*</span></label>
+                            <input type="text" id="facilityName" name="facilityName" placeholder="e.g. Prudential Center Garage" autocomplete="off" spellcheck="false" required>
+                        </div>
+
+                        <div class="field">
+                            <label for="address">Address <span class="required">*</span></label>
+                            <input type="text" id="address" name="address" placeholder="e.g. 800 Boylston St, Boston, MA 02199" autocomplete="off" spellcheck="false" required>
+                        </div>
+
+                        <p class="field-hint">Search copies the prompt and opens <a href="https://gemini.google.com/app" target="_blank" rel="noopener noreferrer">Gemini</a>. Paste with ⌘V / Ctrl+V and press Enter to run it.</p>
+                    </fieldset>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" id="searchBtn">
+                            <span class="btn-text">Search in Gemini</span>
+                        </button>
+                        <button type="button" class="btn btn-ghost" id="copyPromptBtn">Copy prompt only</button>
+                        <button type="button" class="btn btn-ghost" id="clearBtn">Clear</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="panel status-panel status-success" id="statusPanel" hidden aria-live="polite">
+                <div class="status-content" id="statusContent"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js" defer></script>
+</body>
+</html>
