@@ -6,288 +6,58 @@
     const MAX_RECENT = 8;
     const GEMINI_URL = 'https://gemini.google.com/app';
 
-    const PROMPT_TEMPLATE = `Provide a comprehensive parking facility profile for **{FACILITY_NAME}** located at **{ADDRESS}**.
+    const PROMPT_TEMPLATE = `Conduct comprehensive research on the parking facility listed below and create a detailed parking asset profile.
 
-The output must be suitable for:
+**FACILITY NAME:** 
+{FACILITY_NAME}
 
-- Parking marketplace listings (SpotHero, ParkWhiz, BestParking, Parkopedia)
-- Internal parking databases
-- API ingestion
-- GIS mapping
-- Access control integration
-- Revenue management systems
+**ADDRESS:** 
+{ADDRESS}
 
-## **Research Requirements**
+**RESEARCH REQUIREMENTS**
 
-1. Use official sources whenever available:
-    - Facility website
-    - Operator website
-    - Google Maps
-    - Street View
-    - Property management documents
-    - Parking operator documentation
-2. Do not estimate values.
-3. If information cannot be verified, return:
-    - \`Unknown\`
-    - \`Not Publicly Available\`
-4. Include source references for every field.
-5. Include confidence level:
-    - High
-    - Medium
-    - Low
+- Use only verifiable public sources.
+- Cite each data point with a source.
+- Do not estimate or assume information.
+- Create a fact-checked, structured operational profile of this parking facility.
+- Prioritize accuracy over completeness.
+- If information cannot be verified, return "Unknown".
+- Separate confirmed information from inferred information.
+- Use verifiable public data only, including official parking operator sites, Google Maps listings, municipal records, and parking technology vendor information.
+- Cross-reference operator websites, Google Maps, parking apps, satellite imagery, Street View imagery, operator documents, rate boards, permit portals, and public records when available.
+- Include the date each item was verified.
 
----
+**OUTPUT FORMAT**
 
-# **Facility Identification**
+- Return the results in a structured table.
 
-| **Field** | **Value** |
-| --- | --- |
-| Location Name |  |
-| Alternate Names |  |
-| Facility ID (if available) |  |
-| Property Name |  |
-| Operator Name |  |
-| Management Company |  |
-| Facility Website |  |
-| Facility Phone Number |  |
-| Facility Email |  |
+**PROPERTY INFORMATION**
 
----
-
-# **Address Information**
-
-| **Field** | **Value** |
-| --- | --- |
-| Complete Official Address |  |
-| City |  |
-| State |  |
-| ZIP Code |  |
-| Country |  |
-| Latitude |  |
-| Longitude |  |
-| Parcel / Building Name |  |
-
----
-
-# **Facility Classification**
-
-| **Field** | **Value** |
-| --- | --- |
-| Parking Facility Type |  |
-| Location Layout |  |
-| Parking Service Type |  |
-| Self-Park or Valet |  |
-| Public or Private |  |
-| Monthly Parking Available |  |
-| Event Parking Available |  |
-| Reserved Parking Available |  |
-
-Allowed values:
-
-### **Parking Facility Type**
-
-- Garage
-- Surface Lot
-- Underground Garage
-- Mixed Use
-- Mechanical Parking
-- Residential Garage
-- Office Garage
-- Hotel Garage
-- Hospital Garage
-- Airport Parking
-- Other
-
-### **Location Layout**
-
-- Single Structure
-- Multi-Level
-- Underground
-- Surface
-- Mixed
-
-### **Parking Service Type**
-
-- Transient
-- Monthly
-- Permit
-- Residential
-- Employee
-- Mixed
-
----
-
-# **Capacity Information**
-
-| **Field** | **Value** |
-| --- | --- |
-| Total Capacity |  |
-| Public Capacity |  |
-| Reserved Capacity |  |
-| Monthly Capacity |  |
-| ADA Capacity |  |
-| EV Only Capacity |  |
-| Motorcycle Capacity |  |
-| Oversized Vehicle Capacity |  |
-
----
-
-# **Access Control**
-
-| **Field** | **Value** |
-| --- | --- |
-| Is Gated |  |
-| Access Control System |  |
-| Revenue Control System |  |
-| Revenue Control Vendor |  |
-| LPR Cameras Present |  |
-| LPR Vendor |  |
-| Ticket Dispenser Present |  |
-| QR Code Entry Supported |  |
-| Mobile App Entry Supported |  |
-| RFID Supported |  |
-| Barcode Entry Supported |  |
-
----
-
-# **Lane Configuration**
-
-| **Field** | **Value** |
-| --- | --- |
-| Number of Entry Lanes |  |
-| Number of Exit Lanes |  |
-| Reversible Lanes |  |
-| Dedicated Monthly Lanes |  |
-| Dedicated Visitor Lanes |  |
-
----
-
-# **Access Point Inventory**
-
-For every entrance and exit, provide:
-
-| **Field** | **Value** |
-| --- | --- |
-| Access Point Name |  |
-| Access Point Type |  |
-| Entry / Exit / Both |  |
-| Access Address |  |
-| Latitude |  |
-| Longitude |  |
-| Number of Entry Lanes |  |
-| Number of Exit Lanes |  |
-| Gate Type |  |
-| Clearance Height |  |
-| Notes |  |
-
----
-
-# **Vehicle Restrictions**
-
-| **Field** | **Value** |
-| --- | --- |
-| Height Restricted |  |
-| Maximum Height |  |
-| Maximum Vehicle Length |  |
-| Maximum Vehicle Width |  |
-| Weight Restriction |  |
-| Oversized Vehicles Allowed |  |
-| Trailer Parking Allowed |  |
-| Motorcycle Parking Allowed |  |
-
----
-
-# **EV Infrastructure**
-
-| **Field** | **Value** |
-| --- | --- |
-| Has Vehicle Charging |  |
-| Charging Network |  |
-| Number of Chargers |  |
-| Charger Types |  |
-| Fast Charging Available |  |
-
----
-
-# **Payment Information**
-
-| **Field** | **Value** |
-| --- | --- |
-| Payment Methods Accepted |  |
-| Cash Accepted |  |
-| Credit Cards Accepted |  |
-| Mobile Payments Accepted |  |
-| Validation Available |  |
-| Monthly Billing Available |  |
-
----
-
-# **Operating Information**
-
-| **Field** | **Value** |
-| --- | --- |
-| Hours of Operation |  |
-| Overnight Parking Allowed |  |
-| Attendant On Site |  |
-| Security Presence |  |
-| Security Cameras |  |
-| Emergency Contact Number |  |
-
----
-
-# **Parking Types Supported**
-
-Return all that apply:
-
-- Transient
-- Hourly
-- Daily
-- Monthly
-- Event
-- Hotel Guest
-- Residential
-- Employee
-- Visitor
-- Reserved
-- Valet
-- ADA
-- EV Charging
-- Motorcycle
-
----
-
-# **Amenities**
-
-| **Field** | **Value** |
-| --- | --- |
-| ADA Accessible |  |
-| Elevator Access |  |
-| Stair Access |  |
-| Restrooms Available |  |
-| Covered Parking |  |
-| Lighting Quality |  |
-| Wayfinding Signage |  |
-
----
-
-# **Data Quality Section**
-
-| **Field** | **Value** |
-| --- | --- |
-| Information Confidence |  |
-| Last Verified Date |  |
-| Data Sources Used |  |
-| Missing Information |  |
-
----
-
-# **Output Requirements**
-
-1. Return results in structured JSON and a readable table.
-2. Include exact coordinates for every access point.
-3. Identify likely revenue-control and access-control vendors if visible from imagery.
-4. Separate verified facts from inferred observations.
-5. Include source links and citations for every major data point.`;
+- Location Name
+- Operator Name
+- Complete Official Address
+- Is Gated?
+- Revenue Control Systems (e.g., Digital Payment Technologies, Amano McGann, etc)
+- Access Control Systems
+- Number of Entry and Exit Lanes
+- Main Access Point Address
+- Main Access Point Type
+- Main Access Point Entry and Exit Lanes
+- Main Access Point Coordinates
+- Parking Facility Type (e.g., Commercial, Airport, Hotel, Restaurant etc.)
+- Location Layout (e.g., Surface Lot, Indoor Garage, Below Ground Garage, Above Ground Garage etc.,)
+- Parking Service Type (e.g., Self Park, Valet etc.,)
+- Total Capacity
+- EV Only Capacity
+- Has Vehicle Charging
+- Has LPR Cameras
+- LPR Camera Brand
+- Height Limit
+- Hours of Operation
+- Phone number
+- Payment Accepted (e.g, Cash, Credit, Apple Pay, etc.,)
+- Parking Types Supported (e.g., Daily, Monthly, etc.)
+- Daily Rates (e.g., Hourly Rates, Special Rates, Weekend Rates etc.)`;
 
     const form = document.getElementById('profileForm');
     const facilityNameInput = document.getElementById('facilityName');
