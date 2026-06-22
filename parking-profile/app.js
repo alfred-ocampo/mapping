@@ -17,7 +17,7 @@
 **RESEARCH REQUIREMENTS**
 
 - Use only verifiable public sources.
-- Cite each data point with a source.
+- Cite each data point with a source and include URLs
 - Do not estimate or assume information.
 - Create a fact-checked, structured operational profile of this parking facility.
 - Prioritize accuracy over completeness.
